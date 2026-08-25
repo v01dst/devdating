@@ -82,7 +82,22 @@ input_value() {
 }
 
 trap 'tput cnorm 2>/dev/null || true' EXIT INT TERM
-[[ -t 1 ]] || die "Interactive terminal required. Use DEVDATING_MODE=native and DEVDATING_LANGUAGES=... for noninteractive setup."
+
+# curl | bash consumes stdin for this script. Re-launch from a real file so
+# the interactive installer can safely read keyboard input.
+if [[ ! -t 0 ]]; then
+  self_path=/tmp/devdating-install-$$.sh
+  if [[ -f /proc/self/fd/255 ]]; then cp /proc/self/fd/255 "$self_path" 2>/dev/null || true; fi
+  if [[ ! -s "$self_path" ]]; then
+    curl -fsSL "https://raw.githubusercontent.com/v01dst/devdating/$BRANCH/install.sh" -o "$self_path"
+  fi
+  chmod +x "$self_path"
+  if command -v script >/dev/null 2>&1 && [[ -t 1 ]]; then
+    exec script -qec "DEVDATING_HOME='$INSTALL_DIR' DEVDATING_REPO='$REPO_URL' DEVDATING_BRANCH='$BRANCH' bash '$self_path'" /dev/null
+  fi
+  warn "Noninteractive shell detected; using recommended defaults."
+  MODE="${MODE:-native}"
+fi
 
 banner
 printf "  ${DIM}Interactive installer${RESET}\n"
