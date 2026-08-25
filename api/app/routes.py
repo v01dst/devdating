@@ -1,4 +1,5 @@
 import uuid
+from collections import Counter
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
@@ -272,20 +273,33 @@ async def get_issue_recommendation(
 @router.get("/me/recommended-issues")
 async def recommended_issues(
     limit: int = Query(default=10, ge=1, le=50),
+    language: str | None = None,
+    search: str | None = None,
+    label: str | None = None,
     user: User = Depends(require_development_user),
     db: AsyncSession = Depends(get_db),
 ):
+    language_filter = language.strip().lower() if language and language.strip() else None
+    label_filter = label.strip().lower() if label and label.strip() else None
+    search_filter = search.strip().lower() if search and search.strip() else None
     result = await db.execute(
         select(Issue, Project)
         .join(Project, Issue.project_id == Project.id)
         .where(Issue.state == "OPEN", Issue.assignees == 0)
         .order_by(Project.activity_score.desc(), Issue.comments_count.asc())
-        .limit(limit * 3)
+        .limit(500)
     )
     rows = result.all()
     user_stack = {item.lower() for item in user.tech_stack}
     scored = []
     for issue, project in rows:
+        project_languages = {item.lower() for item in project.languages}
+        if language_filter and language_filter not in project_languages:
+            continue
+        if label_filter and not any(label_filter in item.lower() for item in issue.labels):
+            continue
+        if search_filter and search_filter not in f"{issue.title} {issue.body or ''} {project.name} {project.description or ''}".lower():
+            continue
         project_languages = {item.lower() for item in project.languages}
         overlap = len(user_stack & project_languages)
         label_bonus = min(len(issue.labels), 3) * 4
@@ -303,6 +317,63 @@ async def recommended_issues(
             "score": round(score, 2), "reasons": reasons or ["Beginner-friendly open issue"],
         })
     return sorted(scored, key=lambda item: item["score"], reverse=True)[:limit]
+
+
+@router.get("/meta/languages")
+async def available_languages(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Project.languages))
+    counts = Counter()
+    for (languages,) in result.all():
+        for language in languages:
+            counts[language] += 1
+    return [{"language": name, "count": count} for name, count in counts.most_common(40)]
+
+
+@router.get("/projects/public")
+async def public_projects(
+    limit: int = Query(default=24, ge=1, le=100),
+    language: str | None = None,
+    search: str | None = None,
+    topic: str | None = None,
+    sort: str = Query(default="activity", pattern="^(activity|stars|issues|name)$"),
+    db: AsyncSession = Depends(get_db),
+):
+    query = select(Project).where(Project.is_archived.is_(False), Project.issue_count > 0)
+    if language and language.strip():
+        query = query.where(func.lower(Project.languages).contains(language.strip().lower()))
+    if topic and topic.strip():
+        query = query.where(func.lower(Project.topics).contains(topic.strip().lower()))
+    if search and search.strip():
+        term = f"%{search.strip()}%"
+        query = query.where(
+            func.lower(Project.name).contains(term.lower())
+            | func.lower(func.coalesce(Project.description, "")).contains(term.lower())
+        )
+    order = {
+        "activity": Project.activity_score.desc(),
+        "stars": Project.stars.desc(),
+        "issues": Project.issue_count.desc(),
+        "name": Project.name.asc(),
+    }[sort]
+    result = await db.execute(query.order_by(order).limit(limit))
+    projects = result.scalars().all()
+    return [
+        {
+            "id": str(project.id),
+            "repo_url": project.repo_url,
+            "owner_login": project.owner_login,
+            "name": project.name,
+            "description": project.description,
+            "languages": project.languages,
+            "topics": project.topics[:8],
+            "stars": project.stars,
+            "forks": project.forks,
+            "open_issues": project.issue_count,
+            "activity_score": float(project.activity_score),
+            "license": project.license_spdx,
+        }
+        for project in projects
+    ]
 
 
 @router.get("/me/community-questions")

@@ -1,22 +1,46 @@
 import Link from "next/link";
 
+type SearchParams = { language?: string; search?: string; label?: string };
+
 export const metadata = { title: "Recommended Issues — DevDating" };
 
-async function getIssues() {
-  const response = await fetch(`${process.env.API_URL ?? "http://localhost:8000"}/api/v1/me/recommended-issues?limit=24`, {
+async function getIssues(query: URLSearchParams) {
+  const response = await fetch(`${process.env.API_URL ?? "http://localhost:8000"}/api/v1/me/recommended-issues?${query}`, {
     headers: { Authorization: "Bearer local-development-token" }, cache: "no-store",
   });
   if (!response.ok) return [];
   return response.json();
 }
 
-export default async function IssuesPage() {
-  const issues = await getIssues();
+async function getLanguages() {
+  const response = await fetch(`${process.env.API_URL ?? "http://localhost:8000"}/api/v1/meta/languages`, { cache: "no-store" });
+  return response.ok ? response.json() : [];
+}
+
+export default async function IssuesPage({ searchParams }: { searchParams: SearchParams }) {
+  const query = new URLSearchParams();
+  if (searchParams.language) query.set("language", searchParams.language);
+  if (searchParams.search) query.set("search", searchParams.search);
+  if (searchParams.label) query.set("label", searchParams.label);
+  query.set("limit", "48");
+  const [issues, languages] = await Promise.all([getIssues(query), getLanguages()]);
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-12">
       <nav className="mb-10 flex items-center justify-between"><Link href="/discover" className="text-lg font-semibold">Dev<span className="text-accent-soft">Dating</span></Link><span className="pill rounded-full border border-white/15 px-3 py-1 text-xs text-white/60">Live GitHub issues</span></nav>
       <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">Issues picked for you</h1>
-      <p className="mt-4 max-w-2xl text-white/65">Ranked by your tech stack, beginner-friendly labels, discussion load, and project health.</p>
+      <p className="mt-4 max-w-2xl text-white/65">Search public open-source issues by language, label, and keyword.</p>
+      <form action="/issues" className="glass-card mt-8 grid gap-4 rounded-3xl p-5 md:grid-cols-[1fr_180px_180px_130px]">
+        <input name="search" defaultValue={searchParams.search ?? ""} placeholder="Search issues, projects, descriptions…" className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-accent" />
+        <select name="language" defaultValue={searchParams.language ?? ""} className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none">
+          <option value="">All languages</option>
+          {languages.map((item: any) => <option key={item.language} value={item.language}>{item.language} ({item.count})</option>)}
+        </select>
+        <select name="label" defaultValue={searchParams.label ?? ""} className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none">
+          <option value="">All labels</option>
+          {["good first issue","help wanted","documentation","beginner"].map(label => <option key={label} value={label}>{label}</option>)}
+        </select>
+        <button className="rounded-2xl bg-accent px-5 font-medium transition hover:bg-accent-soft">Search</button>
+      </form>
       <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-3">{issues.length === 0 && <div className="glass-card rounded-3xl p-6 text-white/65">No live issues indexed yet. Run <code>devdating sync-github</code>.</div>}
         {issues.map((issue: any) => (
           <a key={issue.issue_id} href={issue.url} target="_blank" rel="noreferrer" className="glass-card group rounded-3xl p-6 transition hover:border-accent/40">
