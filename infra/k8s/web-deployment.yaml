@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devdating-web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: devdating-web
+  template:
+    metadata:
+      labels:
+        app: devdating-web
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/example/devdating-web:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NEXT_PUBLIC_API_URL
+              value: https://api.devdating.example
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 192Mi
+            limits:
+              cpu: 500m
+              memory: 384Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: devdating-web
+spec:
+  selector:
+    app: devdating-web
+  ports:
+    - port: 80
+      targetPort: 3000

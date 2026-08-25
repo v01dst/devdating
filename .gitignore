@@ -1,0 +1,14 @@
+.env
+__pycache__/
+*.py[cod]
+.venv/
+node_modules/
+.next/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+*.log
+.DS_Store
+api/devdating_api.egg-info/
+package-lock.json

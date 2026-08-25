@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devdating-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: devdating-api
+  template:
+    metadata:
+      labels:
+        app: devdating-api
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/example/devdating-api:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: devdating-api-secrets
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 150m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: devdating-api
+spec:
+  selector:
+    app: devdating-api
+  ports:
+    - port: 80
+      targetPort: 8000
