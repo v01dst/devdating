@@ -97,6 +97,7 @@ if [[ ! -t 0 ]]; then
   fi
   warn "Noninteractive shell detected; using recommended defaults."
   MODE="${MODE:-native}"
+  NONINTERACTIVE=1
 fi
 
 banner
@@ -112,12 +113,17 @@ else
   mode_options=("Native SQLite (recommended)" "Docker (unavailable)")
 fi
 
-choice=$(choose "Choose runtime mode" "${mode_options[@]}")
-if [[ "${mode_options[$choice]}" == Docker* ]]; then MODE=docker; else MODE=native; fi
-
-language_input=$(input_value "Languages for GitHub discovery" "$LANGUAGES")
-target_input=$(input_value "How many issues should the first sync index?" "$SYNC_TARGET")
-[[ "$target_input" =~ ^[0-9]+$ ]] || target_input=500
+if [[ "${NONINTERACTIVE:-0}" == 1 ]]; then
+  MODE="${MODE:-native}"
+  language_input="$LANGUAGES"
+  target_input="$SYNC_TARGET"
+else
+  choice=$(choose "Choose runtime mode" "${mode_options[@]}")
+  if [[ "${mode_options[$choice]}" == Docker* ]]; then MODE=docker; else MODE=native; fi
+  language_input=$(input_value "Languages for GitHub discovery" "$LANGUAGES")
+  target_input=$(input_value "How many issues should the first sync index?" "$SYNC_TARGET")
+  [[ "$target_input" =~ ^[0-9]+$ ]] || target_input=500
+fi
 
 mkdir -p "$INSTALL_DIR"
 banner
