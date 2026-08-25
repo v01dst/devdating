@@ -16,7 +16,7 @@ die() { printf "${RED}✖ $*${RESET}\n" >&2; exit 1; }
 
 banner() {
 set +e
-if [[ -t 1 ]]; then clear; fi
+clear
 set -e
 cat <<'BANNER'
   ██████╗ ███████╗██╗   ██╗██████╗  █████╗ ████████╗██╗███╗   ██╗ ██████╗
@@ -83,7 +83,7 @@ input_value() {
   printf '%s' "${value:-$default}"
 }
 
-trap '(set +e; tput cnorm) 2>/dev/null || true' EXIT INT TERM
+trap ':' EXIT INT TERM
 
 # curl | bash consumes stdin for this script. Re-launch from a real file so
 # the interactive installer can safely read keyboard input.
