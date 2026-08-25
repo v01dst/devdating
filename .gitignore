@@ -12,3 +12,8 @@ build/
 .DS_Store
 api/devdating_api.egg-info/
 package-lock.json
+.npm-cache/
+.run/
+logs/
+devdating.db*
+devdating.env

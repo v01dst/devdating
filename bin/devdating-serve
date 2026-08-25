@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+mkdir -p logs .run
+
+cleanup() {
+  [[ -f .run/api.pid ]] && kill "$(cat .run/api.pid)" 2>/dev/null || true
+  [[ -f .run/web.pid ]] && kill "$(cat .run/web.pid)" 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
+
+(
+  cd api
+  export $(grep -v '^#' "$ROOT/devdating.env" | xargs)
+  export PYTHONPATH="$ROOT/api"
+  exec "$ROOT/.venv/bin/uvicorn" app.main:app --host 0.0.0.0 --port 8000
+) & echo $! >.run/api.pid
+
+(
+  cd web
+  exec npm run start -- --hostname 0.0.0.0 --port 3000
+) & echo $! >.run/web.pid
+
+wait

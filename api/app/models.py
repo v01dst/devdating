@@ -3,7 +3,8 @@ import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.types import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -53,10 +54,10 @@ class User(Base):
         Enum(ExperienceLevel, name="experience_level"), default=ExperienceLevel.NEWCOMER
     )
     experience_score: Mapped[float] = mapped_column(Numeric(6, 2), default=0)
-    tech_stack: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
-    domains: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
-    preferences: Mapped[dict] = mapped_column(JSONB, default=dict)
-    availability: Mapped[dict] = mapped_column(JSONB, default=dict)
+    tech_stack: Mapped[list[str]] = mapped_column(JSON, default=list)
+    domains: Mapped[list[str]] = mapped_column(JSON, default=list)
+    preferences: Mapped[dict] = mapped_column(JSON, default=dict)
+    availability: Mapped[dict] = mapped_column(JSON, default=dict)
     onboarding_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
@@ -74,8 +75,8 @@ class Project(Base):
     owner_login: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
-    languages: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
-    topics: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
+    languages: Mapped[list[str]] = mapped_column(JSON, default=list)
+    topics: Mapped[list[str]] = mapped_column(JSON, default=list)
     license_spdx: Mapped[str | None] = mapped_column(String(80))
     stars: Mapped[int] = mapped_column(Integer, default=0)
     forks: Mapped[int] = mapped_column(Integer, default=0)
@@ -101,7 +102,7 @@ class Swipe(Base):
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     direction: Mapped[SwipeDirection] = mapped_column(Enum(SwipeDirection, name="swipe_direction"), nullable=False)
     score_at_swipe: Mapped[float] = mapped_column(Numeric(5, 2), default=0)
-    score_features: Mapped[dict] = mapped_column(JSONB, default=dict)
+    score_features: Mapped[dict] = mapped_column(JSON, default=dict)
     client_request_id: Mapped[str | None] = mapped_column(String(100), unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
@@ -118,7 +119,7 @@ class Match(Base):
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     status: Mapped[MatchStatus] = mapped_column(Enum(MatchStatus, name="match_status"), default=MatchStatus.PENDING_PROJECT)
     compatibility_score: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False)
-    score_breakdown: Mapped[dict] = mapped_column(JSONB, default=dict)
+    score_breakdown: Mapped[dict] = mapped_column(JSON, default=dict)
     initiated_by: Mapped[str] = mapped_column(String(20), default="DEVELOPER")
     matched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
@@ -152,7 +153,7 @@ class Message(Base):
     )
     sender_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
-    metadata_json: Mapped[dict] = mapped_column("metadata", JSONB, default=dict)
+    metadata_json: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
     redacted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
@@ -172,7 +173,7 @@ class IssueRecommendation(Base):
     confidence: Mapped[float] = mapped_column(Numeric(4, 3), nullable=False)
     rationale: Mapped[str] = mapped_column(Text, nullable=False)
     model_version: Mapped[str] = mapped_column(String(40), default="rules-v1")
-    features: Mapped[dict] = mapped_column(JSONB, default=dict)
+    features: Mapped[dict] = mapped_column(JSON, default=dict)
     status: Mapped[str] = mapped_column(String(20), default="SUGGESTED")
     stale_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

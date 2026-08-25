@@ -20,6 +20,25 @@ docker compose up --build
 - Matching is deterministic and explainable; ML reranking is not enabled.
 - Socket.IO chat is not yet implemented.
 
+## One-Line Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/v01dst/devdating/main/install.sh | bash
+```
+
+The installer automatically selects Docker when available and native SQLite otherwise.
+It installs `devdating`, initializes the database, and prints launch instructions.
+
+```bash
+devdating up --seed
+```
+
+For an attached production process that keeps both services alive:
+
+```bash
+devdating serve
+```
+
 ## Next Implementation Priorities
 
 1. Replace development bearer-token identity with signed session cookies and PKCE OAuth.

@@ -44,5 +44,12 @@ async def require_development_user(
     settings = get_settings()
     if settings.environment != "local":
         raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, detail="Production session auth not implemented yet")
-    token = credentials.credentials if credentials else "demo-user"
-    return await get_or_create_user_from_github(token, db)
+    result = await db.execute(select(User).limit(1))
+    user = result.scalar_one_or_none()
+    if user is not None:
+        return user
+    user = User(github_id=1001, github_login="demo-dev", name="Demo Developer")
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user

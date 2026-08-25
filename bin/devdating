@@ -1,0 +1,153 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+source "$ROOT/devdating.env" 2>/dev/null || true
+if [[ ! -f "$ROOT/devdating.env" ]]; then
+  cat > "$ROOT/devdating.env" <<ENV
+DATABASE_URL=sqlite+aiosqlite:///$ROOT/devdating.db
+REDIS_URL=memory://
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+SESSION_SECRET=local-development-secret
+ENVIRONMENT=local
+DEVDATING_MODE=native
+DEVDATING_HOME=$ROOT
+ENV
+fi
+export DATABASE_URL REDIS_URL ENVIRONMENT DEVDATING_MODE DEVDATING_HOME SESSION_SECRET
+MODE="${DEVDATING_MODE:-native}"
+PID_DIR="$ROOT/.run"
+LOG_DIR="$ROOT/logs"
+mkdir -p "$PID_DIR" "$LOG_DIR"
+
+blue='\033[0;34m'; cyan='\033[0;36m'; purple='\033[1;35m'; green='\033[0;32m'; yellow='\033[1;33m'; red='\033[0;31m'; bold='\033[1m'; reset='\033[0m'
+usage() {
+  cat <<HELP
+DevDating control plane
+
+Usage:
+  devdating <command>
+
+Commands:
+  install [--mode docker|native]   Install dependencies and initialize data
+  setup-ui                         Launch the polished local installer UI
+  up [--seed]                      Start API and web services
+  down                             Stop services
+  status                           Show service state
+  logs [api|web]                   Tail service logs
+  seed                             Load demo projects and developer profile
+  open-setup                       Print the setup URL
+  doctor                           Check prerequisites
+  update                           Pull updates and reinstall dependencies
+  uninstall                        Stop services and remove generated files
+HELP
+}
+
+running() { [[ -f "$1" ]] && kill -0 "$(cat "$1")" 2>/dev/null; }
+wait_for() {
+  local url="$1" name="$2"
+  for _ in $(seq 1 90); do curl -fsS "$url" >/dev/null 2>&1 && { printf "${green}✔${reset} $name ready\n"; return 0; }; sleep 1; done
+  printf "${red}✖${reset} $name failed to become ready\n"; return 1
+}
+
+install_native() {
+  printf "${cyan}▸${reset} Creating Python environment\n"
+  python3 -m venv .venv
+  . .venv/bin/activate
+  pip install --upgrade pip >/dev/null
+  pip install "fastapi>=0.111,<0.116" "uvicorn[standard]>=0.30,<0.31" "sqlalchemy[asyncio]>=2,<3" "aiosqlite>=0.19" "pydantic>=2,<3" "pydantic-settings>=2" "httpx>=0.27,<1" >/dev/null
+  printf "${cyan}▸${reset} Installing web dependencies\n"
+  cd web
+  npm install --cache "$ROOT/.npm-cache" --no-audit --no-fund --legacy-peer-deps
+  cd ..
+}
+
+case "${1:-help}" in
+  install)
+    shift || true
+    mode="$MODE"
+    while (($#)); do case "$1" in --mode) mode="$2"; shift 2;; *) shift;; esac; done
+    if [[ "$mode" == docker ]]; then
+      command -v docker >/dev/null && docker compose up --build -d || exit 1
+    else
+      install_native
+      (cd api && "$ROOT/.venv/bin/python" - <<'PY'
+from app.db import Base, engine
+import app.models
+import asyncio
+async def create():
+ async with engine.begin() as c: await c.run_sync(Base.metadata.create_all)
+asyncio.run(create())
+print("Database initialized")
+PY
+)
+    fi
+    ;;
+  setup-ui)
+    . .venv/bin/activate 2>/dev/null || true
+    export DEVDATING_UI_ONLY=1
+    exec uvicorn installer_ui.app:app --host 127.0.0.1 --port 3100
+    ;;
+  up)
+    shift || true; seed=false
+    for arg in "$@"; do [[ "$arg" == "--seed" ]] && seed=true; done
+    if [[ "$MODE" == docker ]]; then docker compose up -d; else
+      [[ -d .venv ]] || "$0" install
+    . .venv/bin/activate
+    export PYTHONPATH="$ROOT/api:${PYTHONPATH:-}"
+      (
+        cd api
+        set -a
+        source "$ROOT/devdating.env"
+        set +a
+        nohup "$ROOT/.venv/bin/uvicorn" app.main:app --host 0.0.0.0 --port 8000 >"$ROOT/logs/api.log" 2>&1 &
+        echo $! >"$ROOT/.run/api.pid"
+      )
+      wait_for http://localhost:8000/healthz API
+      (
+        cd web
+        nohup npm run start -- --hostname 0.0.0.0 --port 3000 >"$ROOT/logs/web.log" 2>&1 &
+        echo $! >"$ROOT/.run/web.pid"
+      )
+      wait_for http://localhost:3000 Web
+      [[ "$seed" == true ]] && "$0" seed
+      echo "Services started. Use \`devdating serve\` for attached production mode."
+    fi
+    ;;
+  serve)
+    if [[ ! -f web/.next/BUILD_ID ]]; then (cd web && npm run build); fi
+    exec "$ROOT/bin/devdating-serve"
+    ;;
+  down|stop)
+    if [[ "$MODE" == docker ]]; then docker compose down; else
+      for service in web api; do file="$PID_DIR/$service.pid"; if running "$file"; then kill "$(cat "$file")"; rm -f "$file"; printf "${green}✔${reset} $service stopped\n"; fi; done
+    fi ;;
+  restart) "$0" down || true; sleep 1; "$0" up ;;
+  status)
+    for service in api web; do
+      pidfile="$PID_DIR/$service.pid"
+      if running "$pidfile"; then printf "${green}●${reset} %-4s running (PID %s)\n" "$service" "$(cat "$pidfile")"; else printf "${yellow}○${reset} %-4s stopped\n" "$service"; fi
+    done ;;
+  logs)
+    service="${2:-all}"
+    [[ "$service" != web ]] && tail -n 80 -f "$LOG_DIR/api.log"
+    [[ "$service" != api ]] && tail -n 80 -f "$LOG_DIR/web.log"
+    ;;
+  seed)
+    . .venv/bin/activate 2>/dev/null || true
+    export PYTHONPATH="$ROOT/api${PYTHONPATH:+:$PYTHONPATH}"
+    python3 scripts/seed_local.py ;;
+  open-setup) echo http://localhost:3100/setup ;;
+  doctor)
+    command -v python3 >/dev/null && echo Python OK || exit 1
+    command -v node >/dev/null && echo Node OK || exit 1
+    command -v npm >/dev/null && echo npm OK || exit 1 ;;
+  update)
+    git pull --ff-only
+    "$0" install ;;
+  uninstall)
+    "$0" down || true ;;
+  help|--help|-h|*) usage ;;
+esac

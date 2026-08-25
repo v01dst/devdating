@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Providers } from "@/components/Providers";
 import { SwipeDeck } from "@/components/SwipeDeck";
 
