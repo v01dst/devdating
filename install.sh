@@ -15,7 +15,9 @@ warn() { printf "${YELLOW}▲${RESET} %s\n" "$*"; }
 die() { printf "${RED}✖ $*${RESET}\n" >&2; exit 1; }
 
 banner() {
-clear
+set +e
+if [[ -t 1 ]]; then clear; fi
+set -e
 cat <<'BANNER'
   ██████╗ ███████╗██╗   ██╗██████╗  █████╗ ████████╗██╗███╗   ██╗ ██████╗
   ██╔══██╗██╔════╝╚██╗ ██╔╝██╔══██╗██╔══██╗╚══██╔══╝██║████╗  ██║██╔════╝
@@ -51,7 +53,7 @@ progress() {
 
 choose() {
   local title="$1"; shift; local options=("$@") selected=0 key
-  tput civis 2>/dev/null || true
+  if [[ -t 1 ]]; then (set +e; tput civis) 2>/dev/null || true; fi
   draw() {
     clear; banner
     printf "  ${BOLD}%s${RESET}\n\n" "$title"
@@ -81,7 +83,7 @@ input_value() {
   printf '%s' "${value:-$default}"
 }
 
-trap 'tput cnorm 2>/dev/null || true' EXIT INT TERM
+trap '(set +e; tput cnorm) 2>/dev/null || true' EXIT INT TERM
 
 # curl | bash consumes stdin for this script. Re-launch from a real file so
 # the interactive installer can safely read keyboard input.
