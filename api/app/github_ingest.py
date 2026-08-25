@@ -216,6 +216,33 @@ async def bulk_index_issues(session: AsyncSession, target_issues: int = 500, lan
     return {"issues_processed": processed, "projects_created": projects_created}
 
 
+DEFAULT_EXPANDED_LANGUAGES = [
+    "TypeScript", "JavaScript", "Python", "Go", "Rust", "Java", "Kotlin",
+    "Swift", "C", "C++", "C#", "PHP", "Ruby", "Dart", "Elixir", "Lua",
+    "Scala", "Haskell", "Solidity", "Vue", "Svelte",
+]
+
+
+async def enrich_project_languages(session: AsyncSession, batch_size: int = 300):
+    result = await session.execute(select(Project).where(Project.languages == []))
+    projects = result.scalars().all()
+    updated = 0
+    async with httpx.AsyncClient(base_url="https://api.github.com", headers=github_headers(), timeout=30) as client:
+        for index, project in enumerate(projects[:batch_size]):
+            response = await client.get(f"/repos/{project.owner_login}/{project.name}/languages")
+            if response.status_code != 200:
+                continue
+            languages = sorted(response.json().keys(), key=lambda name: -response.json()[name])
+            if languages:
+                project.languages = languages[:8]
+                project.topics = list(dict.fromkeys((project.topics or []) + ["open-source"]))[:12]
+                updated += 1
+            if (index + 1) % 50 == 0:
+                await session.commit()
+        await session.commit()
+    return {"projects_scanned": min(len(projects), batch_size), "projects_updated": updated}
+
+
 GOOD_LABELS = {"good first issue", "beginner", "documentation", "help wanted", "easy"}
 
 
