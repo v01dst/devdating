@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { TopNav } from "@/components/TopNav";
 
 type SearchParams = { language?: string; search?: string; topic?: string; sort?: string };
 
@@ -20,7 +20,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Sea
   const [projects, languages] = await Promise.all([getProjects(query), getLanguages()]);
   return (
     <main className="mx-auto w-full max-w-7xl px-6 py-12">
-      <nav className="mb-10 flex items-center justify-between"><Link href="/discover" className="text-lg font-semibold">Dev<span className="text-accent-soft">Dating</span></Link><span className="rounded-full border border-white/15 px-3 py-1 text-xs text-white/60">Public open-source repositories</span></nav>
+      <TopNav active="/projects" />
       <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">Projects that can help you</h1>
       <p className="mt-4 max-w-2xl text-white/65">Search indexed public repositories by language, topic, activity, and contribution need.</p>
       <form action="/projects" className="glass-card mt-8 grid gap-4 rounded-3xl p-5 md:grid-cols-[1fr_180px_170px_150px_130px]">

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TopNav } from "@/components/TopNav";
 
 export const metadata = { title: "Community Questions — DevDating" };
 
@@ -14,7 +15,7 @@ export default async function CommunityPage() {
   const questions = await getQuestions();
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-12">
-      <nav className="mb-10 flex items-center justify-between"><Link href="/discover" className="text-lg font-semibold">Dev<span className="text-accent-soft">Dating</span></Link><span className="rounded-full border border-white/15 px-3 py-1 text-xs text-white/60">GitHub community</span></nav>
+      <TopNav active="/community" />
       <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">Questions from projects like yours</h1>
       <p className="mt-4 max-w-2xl text-white/65">Answer community discussions in public repositories similar to the technologies you already build.</p>
       <div className="mt-10 grid gap-5 md:grid-cols-2">{questions.length === 0 && <div className="glass-card rounded-3xl p-6 text-white/65">No community questions indexed yet.</div>}

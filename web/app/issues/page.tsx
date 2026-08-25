@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TopNav } from "@/components/TopNav";
 
 type SearchParams = { language?: string; search?: string; label?: string };
 
@@ -26,7 +27,7 @@ export default async function IssuesPage({ searchParams }: { searchParams: Searc
   const [issues, languages] = await Promise.all([getIssues(query), getLanguages()]);
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-12">
-      <nav className="mb-10 flex items-center justify-between"><Link href="/discover" className="text-lg font-semibold">Dev<span className="text-accent-soft">Dating</span></Link><span className="pill rounded-full border border-white/15 px-3 py-1 text-xs text-white/60">Live GitHub issues</span></nav>
+      <TopNav active="/issues" />
       <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">Issues picked for you</h1>
       <p className="mt-4 max-w-2xl text-white/65">Search public open-source issues by language, label, and keyword.</p>
       <form action="/issues" className="glass-card mt-8 grid gap-4 rounded-3xl p-5 md:grid-cols-[1fr_180px_180px_130px]">
