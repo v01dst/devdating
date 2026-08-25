@@ -153,6 +153,12 @@ PY
     export PYTHONPATH="$ROOT/api${PYTHONPATH:+:$PYTHONPATH}"
     . .venv/bin/activate
     python scripts/sync_questions.py ;;
+  sync-bulk)
+    shift || true
+    target="${1:-500}"
+    export PYTHONPATH="$ROOT/api${PYTHONPATH:+:$PYTHONPATH}"
+    . .venv/bin/activate
+    python scripts/bulk_sync.py "$target" ;;
   doctor)
     command -v python3 >/dev/null && echo Python OK || exit 1
     command -v node >/dev/null && echo Node OK || exit 1
