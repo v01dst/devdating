@@ -174,18 +174,6 @@ banner
 spinner "Installing dependencies" "'$INSTALL_DIR/bin/devdating' install --mode '$MODE'"
 
 banner
-step "Preparing personalized GitHub sync"
-"$INSTALL_DIR/bin/devdating" sync-me >/dev/null 2>&1 || warn "Profile sync skipped; run devdating sync-me later."
-
-progress "Indexing beginner-friendly issues" 10 \
-  < <(for number in $(seq 1 10); do
-        "$INSTALL_DIR/bin/devdating" sync-bulk "$((target_input / 10 > 0 ? target_input / 10 : 1))" >/dev/null 2>&1
-        echo "batch $number"
-      done)
-
-"$INSTALL_DIR/bin/devdating" enrich-languages >/dev/null 2>&1 || true
-
-banner
 ok "DevDating is ready at ${BOLD}$INSTALL_DIR${RESET}"
 ok "Mode: ${BOLD}$MODE${RESET}"
 printf '\n'
@@ -193,3 +181,7 @@ printf "  ${BOLD}Launch:${RESET}    devdating up\n"
 printf "  ${BOLD}Projects:${RESET}  http://localhost:3000/projects\n"
 printf "  ${BOLD}Issues:${RESET}    http://localhost:3000/issues\n"
 printf "  ${BOLD}API docs:${RESET}  http://localhost:8000/docs\n\n"
+printf "  ${BOLD}After launch, sync GitHub data:${RESET}\n"
+printf "    devdating sync-me\n"
+printf "    devdating sync-bulk %s\n" "$target_input"
+printf "    devdating enrich-languages\n\n"
