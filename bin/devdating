@@ -61,6 +61,7 @@ install_native() {
   printf "${cyan}▸${reset} Installing web dependencies\n"
   cd web
   npm install --no-audit --no-fund --legacy-peer-deps
+  npm rebuild next --no-audit --no-fund
   cd ..
 }
 
