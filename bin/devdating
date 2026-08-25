@@ -140,6 +140,11 @@ PY
     export PYTHONPATH="$ROOT/api${PYTHONPATH:+:$PYTHONPATH}"
     python3 scripts/seed_local.py ;;
   open-setup) echo http://localhost:3100/setup ;;
+  sync-github)
+    shift || true
+    export PYTHONPATH="$ROOT/api${PYTHONPATH:+:$PYTHONPATH}"
+    . .venv/bin/activate
+    python scripts/sync_live.py "$@" ;;
   doctor)
     command -v python3 >/dev/null && echo Python OK || exit 1
     command -v node >/dev/null && echo Node OK || exit 1

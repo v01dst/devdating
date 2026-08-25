@@ -8,9 +8,10 @@ from sqlalchemy.orm import joinedload
 
 from app.auth import require_development_user
 from app.db import get_db
+from app.github_ingest import sync_all
 from app.issues import estimate_issue_difficulty
 from app.matching import build_reasons, calculate_compatibility
-from app.models import Conversation, IssueRecommendation, Match, MatchStatus, Message, Project, Swipe, SwipeDirection, User
+from app.models import Conversation, Issue, IssueRecommendation, Match, MatchStatus, Message, Project, Swipe, SwipeDirection, User
 from app.schemas import (
     DiscoveryCard,
     MatchRead,
@@ -268,6 +269,42 @@ async def get_issue_recommendation(
     }
 
 
+@router.get("/me/recommended-issues")
+async def recommended_issues(
+    limit: int = Query(default=10, ge=1, le=50),
+    user: User = Depends(require_development_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Issue, Project)
+        .join(Project, Issue.project_id == Project.id)
+        .where(Issue.state == "OPEN", Issue.assignees == 0)
+        .order_by(Project.activity_score.desc(), Issue.comments_count.asc())
+        .limit(limit * 3)
+    )
+    rows = result.all()
+    user_stack = {item.lower() for item in user.tech_stack}
+    scored = []
+    for issue, project in rows:
+        project_languages = {item.lower() for item in project.languages}
+        overlap = len(user_stack & project_languages)
+        label_bonus = min(len(issue.labels), 3) * 4
+        freshness = max(0, 20 - issue.comments_count * 2)
+        score = overlap * 30 + label_bonus + freshness + float(project.activity_score) / 10
+        reasons = []
+        if overlap:
+            reasons.append("Uses a language from your profile")
+        reasons.extend([f"Labeled {label}" for label in issue.labels[:2]])
+        scored.append({
+            "issue_id": str(issue.id), "title": issue.title, "url": issue.url,
+            "project_name": project.name, "repo_url": project.repo_url,
+            "languages": project.languages, "labels": issue.labels,
+            "difficulty": min(100, max(5, issue.comments_count * 8 + len(issue.body or "") / 800)),
+            "score": round(score, 2), "reasons": reasons or ["Beginner-friendly open issue"],
+        })
+    return sorted(scored, key=lambda item: item["score"], reverse=True)[:limit]
+
+
 @router.post("/conversations/{conversation_id}/messages", response_model=MessageRead, status_code=status.HTTP_201_CREATED)
 async def create_message(
     conversation_id: uuid.UUID,
@@ -314,3 +351,8 @@ async def platform_stats(db: AsyncSession = Depends(get_db)) -> dict:
     user_count = await db.scalar(select(func.count(User.id)))
     match_count = await db.scalar(select(func.count(Match.id)))
     return {"projects": project_count, "users": user_count, "matches": match_count}
+
+
+@router.post("/admin/sync-github")
+async def admin_sync_github(languages: list[str] | None = None):
+    return await sync_all(languages or ["Python", "TypeScript"])

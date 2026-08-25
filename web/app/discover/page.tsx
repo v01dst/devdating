@@ -13,6 +13,7 @@ export default function DiscoverPage() {
             Dev<span className="text-accent-soft">Dating</span>
           </Link>
           <span className="rounded-full border border-white/15 px-3 py-1 text-xs text-white/60">Local alpha</span>
+          <Link href="/issues" className="text-sm text-accent-soft underline-offset-4 hover:underline">Issues</Link>
         </header>
         <SwipeDeck />
       </main>

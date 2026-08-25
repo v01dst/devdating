@@ -177,3 +177,22 @@ class IssueRecommendation(Base):
     status: Mapped[str] = mapped_column(String(20), default="SUGGESTED")
     stale_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Issue(Base):
+    __tablename__ = "issues"
+    __table_args__ = (UniqueConstraint("project_id", "issue_number", name="uq_issue_project_number"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    issue_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    body: Mapped[str | None] = mapped_column(Text)
+    url: Mapped[str] = mapped_column(Text, nullable=False)
+    labels: Mapped[list[str]] = mapped_column(JSON, default=list)
+    state: Mapped[str] = mapped_column(String(20), default="OPEN")
+    assignees: Mapped[int] = mapped_column(Integer, default=0)
+    comments_count: Mapped[int] = mapped_column(Integer, default=0)
+    opened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    updated_at_github: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
