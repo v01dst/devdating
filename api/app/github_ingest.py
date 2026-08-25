@@ -1,5 +1,6 @@
 import asyncio
 import os
+from collections import Counter
 from datetime import UTC, datetime
 
 import httpx
@@ -7,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import async_session_factory
-from app.models import Issue, Project
+from app.models import Issue, Project, User
 
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN") or os.environ.get("GITHUB_CLIENT_SECRET")
 
@@ -108,3 +109,86 @@ async def sync_all(languages: list[str]):
         projects = await search_repositories(session, languages)
         issues = await fetch_issues_for_projects(session)
     return {"projects": projects, "issues": issues}
+
+
+async def profile_from_github(session: AsyncSession):
+    async with httpx.AsyncClient(
+        base_url="https://api.github.com",
+        headers=github_headers() | {"Authorization": f"Bearer {os.popen('gh auth token').read().strip()}"},
+        timeout=30,
+    ) as client:
+        me = (await client.get("/user")).raise_for_status().json()
+        repos = (
+            await client.get("/user/repos", params={"per_page": 100, "sort": "updated", "affiliation": "owner"})
+        ).json()
+    languages = Counter(
+        repo["language"] for repo in repos if not repo["fork"] and not repo["archived"] and repo.get("language")
+    )
+    top_languages = [language for language, _ in languages.most_common(6)]
+    result = await session.execute(select(User).limit(1))
+    user = result.scalar_one_or_none()
+    if user is None:
+        user = User(github_id=int(me["id"]), github_login=me["login"], name=me.get("name"))
+        session.add(user)
+    user.github_id = int(me["id"])
+    user.github_login = me["login"]
+    user.name = me.get("name")
+    user.avatar_url = me.get("avatar_url")
+    user.bio = me.get("bio")
+    user.tech_stack = top_languages
+    user.experience_level = "INTERMEDIATE"
+    await session.commit()
+    return {
+        "login": me["login"],
+        "repositories": len(repos),
+        "languages": dict(languages),
+        "tech_stack": top_languages,
+    }
+
+
+async def sync_personal_discovery(per_language: int = 8):
+    async with async_session_factory() as session:
+        profile = await profile_from_github(session)
+        languages = profile["tech_stack"] or ["TypeScript", "Python"]
+        projects = await search_repositories(session, languages, per_language)
+        issues = await fetch_issues_for_projects(session, per_project=30)
+        questions = await fetch_community_questions(session)
+    return {"profile": profile, "projects": projects, "issues": issues, "questions": questions}
+
+
+async def fetch_community_questions(session: AsyncSession, limit_per_project: int = 10):
+    result = await session.execute(select(Project).order_by(Project.activity_score.desc()).limit(30))
+    projects = result.scalars().all()
+    processed = 0
+    async with httpx.AsyncClient(base_url="https://api.github.com", headers=github_headers(), timeout=30) as client:
+        for project in projects:
+            response = await client.get(f"/repos/{project.owner_login}/{project.name}/issues", params={
+                "state": "open", "per_page": limit_per_project * 2,
+            })
+            if response.status_code != 200:
+                continue
+            for item in response.json():
+                labels = {label["name"].lower() for label in item.get("labels", [])}
+                title_lower = item["title"].lower()
+                body_lower = (item.get("body") or "").lower()
+                is_question = bool(labels & {"question", "q&a", "support", "discussion", "needs-triage"}) or any(
+                    phrase in f"{title_lower} {body_lower}" for phrase in ["how do i", "how to", "?"]
+                )
+                if not is_question or "pull_request" in item:
+                    continue
+                existing = await session.execute(
+                    select(Issue).where(Issue.project_id == project.id, Issue.issue_number == item["number"])
+                )
+                issue = existing.scalar_one_or_none()
+                if issue is None:
+                    issue = Issue(project_id=project.id, issue_number=item["number"])
+                    session.add(issue)
+                issue.title = item["title"]
+                issue.body = (item.get("body") or "")[:8000]
+                issue.url = item["html_url"]
+                issue.labels = sorted(labels & {"question", "q&a", "support", "discussion", "needs-triage"})
+                issue.state = item["state"].upper()
+                issue.comments_count = item.get("comments", 0)
+                processed += 1
+        await session.commit()
+    return {"community_questions_processed": processed}

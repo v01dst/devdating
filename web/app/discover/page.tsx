@@ -14,6 +14,7 @@ export default function DiscoverPage() {
           </Link>
           <span className="rounded-full border border-white/15 px-3 py-1 text-xs text-white/60">Local alpha</span>
           <Link href="/issues" className="text-sm text-accent-soft underline-offset-4 hover:underline">Issues</Link>
+          <Link href="/community" className="text-sm text-accent-soft underline-offset-4 hover:underline">Community</Link>
         </header>
         <SwipeDeck />
       </main>

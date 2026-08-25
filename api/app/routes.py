@@ -305,6 +305,38 @@ async def recommended_issues(
     return sorted(scored, key=lambda item: item["score"], reverse=True)[:limit]
 
 
+@router.get("/me/community-questions")
+async def community_questions(
+    limit: int = Query(default=20, ge=1, le=50),
+    user: User = Depends(require_development_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Issue, Project)
+        .join(Project, Issue.project_id == Project.id)
+        .order_by(Project.activity_score.desc(), Issue.comments_count.desc())
+        .limit(limit * 3)
+    )
+    rows = result.all()
+    stack = {item.lower() for item in user.tech_stack}
+    output = []
+    for issue, project in rows:
+        text = f"{issue.title} {issue.body or ''}".lower()
+        question_like = bool(issue.labels) or "?" in text or any(p in text for p in ["how do i", "how to", "help"])
+        if not question_like:
+            continue
+        overlap = len(stack & {item.lower() for item in project.languages})
+        output.append({
+            "issue_id": str(issue.id), "title": issue.title, "url": issue.url,
+            "project_name": project.name, "repo_url": project.repo_url,
+            "languages": project.languages, "labels": issue.labels,
+            "comments": issue.comments_count,
+            "relevance": overlap * 30 + min(issue.comments_count, 20) + float(project.activity_score) / 10,
+            "snippet": (issue.body or "")[:220],
+        })
+    return sorted(output, key=lambda item: item["relevance"], reverse=True)[:limit]
+
+
 @router.post("/conversations/{conversation_id}/messages", response_model=MessageRead, status_code=status.HTTP_201_CREATED)
 async def create_message(
     conversation_id: uuid.UUID,

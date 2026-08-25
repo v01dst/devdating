@@ -145,6 +145,14 @@ PY
     export PYTHONPATH="$ROOT/api${PYTHONPATH:+:$PYTHONPATH}"
     . .venv/bin/activate
     python scripts/sync_live.py "$@" ;;
+  sync-me)
+    export PYTHONPATH="$ROOT/api${PYTHONPATH:+:$PYTHONPATH}"
+    . .venv/bin/activate
+    python scripts/sync_personal.py ;;
+  sync-questions)
+    export PYTHONPATH="$ROOT/api${PYTHONPATH:+:$PYTHONPATH}"
+    . .venv/bin/activate
+    python scripts/sync_questions.py ;;
   doctor)
     command -v python3 >/dev/null && echo Python OK || exit 1
     command -v node >/dev/null && echo Node OK || exit 1
