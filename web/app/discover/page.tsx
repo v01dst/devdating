@@ -16,7 +16,6 @@ export default function DiscoverPage() {
           <Link href="/issues" className="text-sm text-accent-soft underline-offset-4 hover:underline">Issues</Link>
           <Link href="/community" className="text-sm text-accent-soft underline-offset-4 hover:underline">Community</Link>
           <Link href="/projects" className="text-sm text-accent-soft underline-offset-4 hover:underline">Projects</Link>
-          <Link href="/learn" className="text-sm text-accent-soft underline-offset-4 hover:underline">Learn</Link>
         </header>
         <SwipeDeck />
       </main>
