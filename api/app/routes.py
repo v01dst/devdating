@@ -11,6 +11,7 @@ from app.auth import require_development_user
 from app.db import get_db
 from app.github_ingest import sync_all
 from app.issues import estimate_issue_difficulty
+from app.learning import contribution_readiness, learning_paths
 from app.matching import build_reasons, calculate_compatibility
 from app.models import Conversation, Issue, IssueRecommendation, Match, MatchStatus, Message, Project, Swipe, SwipeDirection, User
 from app.schemas import (
@@ -374,6 +375,54 @@ async def public_projects(
         }
         for project in projects
     ]
+
+
+@router.get("/learning/paths")
+async def get_learning_paths(user: User = Depends(require_development_user)):
+    return learning_paths(user.tech_stack, user.experience_level.value)
+
+
+@router.get("/learning/readiness")
+async def learning_readiness(
+    db: AsyncSession = Depends(get_db), user: User = Depends(require_development_user)
+):
+    result = await db.execute(
+        select(Issue).options(joinedload(Issue.project)).where(Issue.state == "OPEN").limit(3000)
+    )
+    issues = result.unique().scalars().all()
+    return contribution_readiness(issues, user.tech_stack)
+
+
+@router.get("/learning/playbook")
+async def issue_playbook(
+    issue_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Issue).options(joinedload(Issue.project)).where(Issue.id == issue_id))
+    issue = result.scalar_one_or_none()
+    if issue is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Issue not found")
+    labels = [label.lower() for label in (issue.labels or [])]
+    difficulty = "easy"
+    if issue.comments_count >= 10 or any(label in labels for label in ["bug", "performance"]):
+        difficulty = "medium"
+    if issue.comments_count >= 25 or len(issue.body or "") > 5000:
+        difficulty = "advanced"
+    return {
+        "issue": {"id": str(issue.id), "title": issue.title, "url": issue.url},
+        "difficulty": difficulty,
+        "estimated_time_hours": 1 if difficulty == "easy" else 3 if difficulty == "medium" else 8,
+        "steps": [
+            {"title": "Read the issue carefully", "detail": "Identify the expected behavior and acceptance criteria."},
+            {"title": "Open the repository", "detail": "Check README, CONTRIBUTING.md, and recent merged PRs."},
+            {"title": "Fork and clone", "detail": f"git clone https://github.com/<your-username>/{issue.project.name}.git"},
+            {"title": "Create a branch", "detail": "git switch -c fix/short-issue-description"},
+            {"title": "Make a small change", "detail": "Keep the first pull request focused on one clear improvement."},
+            {"title": "Run local checks", "detail": "Follow the repository test and lint instructions."},
+            {"title": "Commit with context", "detail": 'Example: git commit -m "fix: clarify validation behavior"'},
+            {"title": "Open your pull request", "detail": "Link the original issue and explain what changed."},
+        ],
+    }
 
 
 @router.get("/me/community-questions")

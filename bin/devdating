@@ -159,6 +159,10 @@ PY
     export PYTHONPATH="$ROOT/api${PYTHONPATH:+:$PYTHONPATH}"
     . .venv/bin/activate
     python scripts/bulk_sync.py "$target" ;;
+  enrich-languages)
+    export PYTHONPATH="$ROOT/api${PYTHONPATH:+:$PYTHONPATH}"
+    . .venv/bin/activate
+    python scripts/enrich_projects.py ;;
   doctor)
     command -v python3 >/dev/null && echo Python OK || exit 1
     command -v node >/dev/null && echo Node OK || exit 1

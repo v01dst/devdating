@@ -48,6 +48,7 @@ export default async function IssuesPage({ searchParams }: { searchParams: Searc
             <h2 className="mt-3 line-clamp-3 font-semibold leading-snug group-hover:text-accent-soft">{issue.title}</h2>
             <div className="mt-4 flex flex-wrap gap-2">{issue.languages.slice(0,2).map((x:string)=><span key={x} className="rounded-full border border-white/15 px-2 py-1 text-xs">{x}</span>)}</div>
             <ul className="mt-4 space-y-1 text-sm text-white/60">{issue.reasons.slice(0,2).map((r:string)=><li key={r}>✦ {r}</li>)}</ul>
+            <form action="/learn" method="get" className="mt-4"><input type="hidden" name="issue" value={issue.issue_id}/><button className="w-full rounded-full bg-white/10 py-2 text-sm font-medium transition hover:bg-white/20">How to contribute</button></form>
           </a>
         ))}
       </div>
