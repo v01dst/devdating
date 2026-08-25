@@ -17,3 +17,4 @@ package-lock.json
 logs/
 devdating.db*
 devdating.env
+npm/.npmrc
