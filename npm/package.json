@@ -1,6 +1,6 @@
 {
-  "name": "devdating",
-  "version": "0.1.0",
+  "name": "@v01dst/devdating",
+  "version": "1.0.0",
   "description": "Global installer and CLI for DevDating — discover open-source projects and beginner-friendly GitHub issues.",
   "license": "MIT",
   "type": "commonjs",
@@ -12,4 +12,5 @@
     "url": "https://github.com/v01dst/devdating.git"
   },
   "keywords": ["open-source", "github", "issues", "projects", "contributors"]
+  ,"publishConfig": { "access": "public" }
 }

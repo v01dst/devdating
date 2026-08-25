@@ -6,7 +6,7 @@
 
 **Find open-source projects and beginner-friendly GitHub issues — instantly.**
 
-[![Install globally](https://img.shields.io/badge/install-npm%20i%20--g%20devdating-7c5cff?style=for-the-badge&logo=npm)](https://www.npmjs.com/package/devdating)
+[![Install globally](https://img.shields.io/badge/install-npm%20i%20--g%20%40v01dst%2Fdevdating-7c5cff?style=for-the-badge&logo=npm)](https://www.npmjs.com/package/@v01dst/devdating)
 [![GitHub](https://img.shields.io/badge/source-GitHub-181717?style=for-the-badge&logo=github)](https://github.com/v01dst/devdating)
 [![License](https://img.shields.io/badge/license-MIT-22c55e?style=for-the-badge)](./LICENSE)
 
@@ -15,7 +15,7 @@
 ## ✨ Install Globally
 
 ```bash
-npm install -g devdating@latest
+npm install -g @v01dst/devdating@latest
 devdating install
 ```
 
@@ -29,7 +29,7 @@ cd ~/.devdating
 Or use the global CLI directly:
 
 ```bash
-npx devdating up
+npx @v01dst/devdating up
 ```
 
 Open:
