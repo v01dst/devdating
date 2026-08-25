@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="280" viewBox="0 0 1200 280">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#10101a"/><stop offset="1" stop-color="#1b1235"/></linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7c5cff"/><stop offset="1" stop-color="#22d3ee"/></linearGradient>
+  </defs>
+  <rect width="1200" height="280" fill="url(#bg)"/>
+  <circle cx="1050" cy="30" r="140" fill="#7c5cff" opacity=".18"/>
+  <circle cx="90" cy="250" r="100" fill="#22d3ee" opacity=".10"/>
+  <text x="70" y="125" fill="#fff" font-family="Segoe UI, Inter, sans-serif" font-size="72" font-weight="800">DevDating</text>
+  <rect x="72" y="150" width="260" height="6" rx="3" fill="url(#accent)"/>
+  <text x="70" y="205" fill="#c9c9dd" font-family="Inter, sans-serif" font-size="28">Discover projects. Solve real issues. Contribute faster.</text>
+  <rect x="70" y="230" width="220" height="38" rx="19" fill="#7c5cff"/><text x="105" y="255" fill="#fff" font-family="Inter,sans-serif" font-weight="700">npx devdating</text>
+</svg>

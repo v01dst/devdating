@@ -1,38 +1,78 @@
+<div align="center">
+
+<img src="docs/images/banner.svg" width="100%" alt="DevDating banner" />
+
 # DevDating
 
-A mobile-first platform that matches open-source contributors with suitable repositories.
+**Find open-source projects and beginner-friendly GitHub issues — instantly.**
 
-## Stack
+[![Install with npm](https://img.shields.io/badge/install-npx%20devdating-7c5cff?style=for-the-badge&logo=npm)](https://www.npmjs.com/package/devdating)
+[![GitHub](https://img.shields.io/badge/source-GitHub-181717?style=for-the-badge&logo=github)](https://github.com/v01dst/devdating)
+[![License](https://img.shields.io/badge/license-MIT-22c55e?style=for-the-badge)](./LICENSE)
 
-- **Web:** Next.js 14, React, Tailwind CSS, Framer Motion
-- **API:** FastAPI, SQLAlchemy 2, Pydantic v2
-- **Database:** PostgreSQL 16
-- **Cache / queues:** Redis 7
-- **Realtime:** Socket.IO service
-- **ML:** Scikit-learn
-- **Infrastructure:** Docker Compose with Kubernetes-ready services
+</div>
 
-## Local Development
+## ✨ Install in 10 Seconds
 
 ```bash
-cp .env.example .env
-docker compose up --build
+npx devdating@latest
 ```
 
-Services:
-
-- Web: http://localhost:3000
-- API docs: http://localhost:8000/docs
-- API health: http://localhost:8000/healthz
-- PostgreSQL: localhost:5432
-- Redis: localhost:6379
-
-The initial alpha includes health checks, SQLAlchemy models, profile/discovery/swipe/match/chat routes,
-deterministic explainable scoring, rule-based issue recommendations, a mobile-first landing page,
-and a Framer Motion swipe deck.
-
-## Validation
+Then start:
 
 ```bash
-cd api && python -m pytest
+cd ~/.devdating
+./bin/devdating up
 ```
+
+Open:
+
+- **Projects:** http://localhost:3000/projects
+- **Issues:** http://localhost:3000/issues
+
+<div align="center"><img src="docs/images/install-flow.svg" width="720" alt="DevDating install flow" /></div>
+
+## 🚀 What You Get
+
+| Feature | Description |
+|---|---|
+| 🔍 Project Discovery | Search repositories by language, topic, activity, and stars |
+| 🐞 Beginner Issues | Filter real GitHub issues by language and labels |
+| ⚡ Bulk Sync | Index hundreds or thousands of issues from GitHub |
+| 🧠 Personal Matching | Detect your languages from your GitHub profile |
+| 💬 Community Questions | Discover questions in similar projects |
+
+## 📦 Commands
+
+```bash
+devdating up                    # Start API + web app
+devdating sync-me               # Personalize from GitHub profile
+devdating sync-bulk 500         # Index 500 issues
+devdating enrich-languages      # Improve repository metadata
+devdating status                # Check services
+devdating stop                  # Stop services
+```
+
+## 🧭 Screens
+
+### Projects
+Browse contribution-ready public repositories.
+
+![Projects screen](docs/images/projects.svg)
+
+### Issues
+Search real beginner-friendly GitHub issues.
+
+![Issues screen](docs/images/issues.svg)
+
+## ⚙️ Requirements
+
+- Node.js 18+
+- Python 3.11+
+- Git
+
+Docker is optional.
+
+## 📄 License
+
+MIT

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="300" viewBox="0 0 900 300">
+<defs><style>.box{fill:#12121d;stroke:#2b2b42;rx:20}.txt{fill:#fff;font-family:Inter,sans-serif}.small{fill:#9f9fb4;font-family:Inter,sans-serif}</style></defs>
+<rect width="900" height="300" rx="24" fill="#08080d"/>
+<circle cx="820" cy="40" r="110" fill="#7c5cff" opacity=".15"/>
+<g><rect class="box" x="60" y="60" width="210" height="120" rx="20"/><text class="txt" x="95" y="115" font-size="28">1 · Install</text><text class="small" x="92" y="148">npx devdating</text></g>
+<path d="M285 120 H350 M340 112 L352 120 L340 128" stroke="#7c5cff" stroke-width="4"/>
+<g><rect class="box" x="360" y="60" width="210" height="120" rx="20"/><text class="txt" x="400" y="115" font-size="28">2 · Launch</text><text class="small" x="395" y="148">devdating up</text></g>
+<path d="M585 120 H650 M640 112 L652 120 L640 128" stroke="#22d3ee" stroke-width="4"/>
+<g><rect class="box" x="655" y="60" width="190" height="120" rx="20"/><text class="txt" x="700" y="115" font-size="26">3 · Contribute</text><text class="small" x="682" y="148">projects + issues</text></g>
+</svg>
