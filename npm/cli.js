@@ -80,8 +80,15 @@ async function install() {
 `);
 }
 
-const command = process.argv[2] || "install";
-if (command === "install") install();
+const command = process.argv[2];
+if (!command || command === "install") {
+  if (fs.existsSync(path.join(HOME, ".git"))) {
+    console.log(`${colors.green}✔ DevDating is already installed at ${HOME}${colors.reset}`);
+    console.log(`Run ${colors.bold}devdating up${colors.reset}`);
+    process.exit(0);
+  }
+  install();
+}
 else {
   const target = path.join(HOME, "bin/devdating");
   if (!fs.existsSync(target)) { console.error("DevDating is not installed. Run: npx devdating"); process.exit(1); }

@@ -1,7 +1,7 @@
 {
   "name": "devdating",
   "version": "0.1.0",
-  "description": "Install and launch DevDating — discover open-source projects and beginner-friendly issues.",
+  "description": "Global installer and CLI for DevDating — discover open-source projects and beginner-friendly GitHub issues.",
   "license": "MIT",
   "type": "commonjs",
   "bin": { "devdating": "./cli.js" },
