@@ -60,7 +60,7 @@ install_native() {
   pip install "fastapi>=0.111,<0.116" "uvicorn[standard]>=0.30,<0.31" "sqlalchemy[asyncio]>=2,<3" "aiosqlite>=0.19" "pydantic>=2,<3" "pydantic-settings>=2" "httpx>=0.27,<1" >/dev/null
   printf "${cyan}▸${reset} Installing web dependencies\n"
   cd web
-  npm install --cache "$ROOT/.npm-cache" --no-audit --no-fund --legacy-peer-deps
+  npm install --no-audit --no-fund --legacy-peer-deps
   cd ..
 }
 
