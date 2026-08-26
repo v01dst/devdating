@@ -47,8 +47,17 @@ HELP
 
 running() { [[ -f "$1" ]] && kill -0 "$(cat "$1")" 2>/dev/null; }
 wait_for() {
-  local url="$1" name="$2"
-  for _ in $(seq 1 90); do curl -fsS "$url" >/dev/null 2>&1 && { printf "${green}✔${reset} $name ready\n"; return 0; }; sleep 1; done
+  local url="$1" name="$2" pidfile="${3:-}" pid=""
+  [[ -n "$pidfile" && -f "$pidfile" ]] && pid="$(cat "$pidfile")"
+  for _ in $(seq 1 90); do
+    if curl -fsS --max-time 2 "$url" >/dev/null 2>&1; then
+      if [[ -n "$pid" ]] && ! kill -0 "$pid" 2>/dev/null; then
+        printf "${red}✖${reset} $name process died (port likely taken by another process). Stop it and retry.\n"; return 1
+      fi
+      printf "${green}✔${reset} $name ready\n"; return 0
+    fi
+    sleep 1
+  done
   printf "${red}✖${reset} $name failed to become ready\n"; return 1
 }
 
@@ -98,25 +107,33 @@ PY
       [[ -d .venv ]] || "$0" install
     . .venv/bin/activate
     export PYTHONPATH="$ROOT/api:${PYTHONPATH:-}"
-      (
-        cd api
-        set -a
-        source "$ROOT/devdating.env"
-        set +a
-        nohup "$ROOT/.venv/bin/uvicorn" app.main:app --host 0.0.0.0 --port 8000 >"$ROOT/logs/api.log" 2>&1 &
-        echo $! >"$ROOT/.run/api.pid"
-      )
-      wait_for http://localhost:8000/healthz API
-      (
-        cd web
-        if [[ ! -f .next/BUILD_ID ]]; then
-          echo "Building web app before first launch..." >"$ROOT/logs/web.log"
-          ./node_modules/.bin/next build >>"$ROOT/logs/web.log" 2>&1 || npm run build >>"$ROOT/logs/web.log" 2>&1 || exit 1
-        fi
-        nohup ./node_modules/.bin/next start --hostname 0.0.0.0 --port 3000 >>"$ROOT/logs/web.log" 2>&1 &
-        echo $! >"$ROOT/.run/web.pid"
-      )
-      wait_for http://localhost:3000 Web
+      if running "$PID_DIR/api.pid"; then
+        printf "${yellow}▸${reset} API already running\n"
+      else
+        (
+          cd api
+          set -a
+          source "$ROOT/devdating.env"
+          set +a
+          nohup "$ROOT/.venv/bin/uvicorn" app.main:app --host 0.0.0.0 --port 8000 >"$ROOT/logs/api.log" 2>&1 &
+          echo $! >"$ROOT/.run/api.pid"
+        )
+        wait_for http://localhost:8000/healthz API "$PID_DIR/api.pid" || exit 1
+      fi
+      if running "$PID_DIR/web.pid"; then
+        printf "${yellow}▸${reset} Web already running\n"
+      else
+        (
+          cd web
+          if [[ ! -f .next/BUILD_ID ]]; then
+            echo "Building web app before first launch..." >"$ROOT/logs/web.log"
+            ./node_modules/.bin/next build >>"$ROOT/logs/web.log" 2>&1 || npm run build >>"$ROOT/logs/web.log" 2>&1 || exit 1
+          fi
+          nohup ./node_modules/.bin/next start --hostname 0.0.0.0 --port 3000 >>"$ROOT/logs/web.log" 2>&1 &
+          echo $! >"$ROOT/.run/web.pid"
+        )
+        wait_for http://localhost:3000 Web "$PID_DIR/web.pid" || exit 1
+      fi
       [[ "$seed" == true ]] && "$0" seed
       echo "Services started. Use \`devdating serve\` for attached production mode."
     fi

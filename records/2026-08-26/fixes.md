@@ -1,0 +1,1 @@
+- [01:44:23] bin/devdating launcher: 'devdating up' reported false-ready when port 8000 was squatted by an older install (~/.devdating); wait_for now verifies the spawned pid is alive, up is idempotent (skips running services), and exits non-zero on failure(no message)

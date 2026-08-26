@@ -1,0 +1,1 @@
+- [01:44:23] root cause of 'website not working': duplicate install at /root/.devdating held port 8000 with stale API while new web served on :3000. Killed rogue process, synced ~/.devdating via git pull, clean restart — api+web 200, status accurate(no message)

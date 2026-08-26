@@ -1,0 +1,1 @@
+- [01:44:24] npm publish @v01dst/devdating@1.0.1 blocked: token in ~/.npmrc authenticates as v01dst but registry returns 404 on PUT (no write grant). Needs a write/automation token; version bump already pushed to git(no message)
