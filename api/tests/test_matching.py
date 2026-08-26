@@ -1,4 +1,8 @@
-from app.matching import calculate_compatibility, experience_level_from_score, infer_experience_score
+from app.matching import (
+    calculate_compatibility,
+    experience_level_from_score,
+    infer_experience_score,
+)
 
 
 def test_perfect_alignment_scores_above_match_threshold():

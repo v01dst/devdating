@@ -1,0 +1,48 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install API package with dev extras
+        run: pip install -e "./api[dev]"
+      - name: Lint
+        run: ruff check .
+        working-directory: api
+      - name: Tests
+        run: python -m pytest tests -q
+        working-directory: api
+      - name: Migration applies to a fresh database
+        run: |
+          python -m alembic upgrade head
+          python -m alembic downgrade base
+          python -m alembic upgrade head
+        working-directory: api
+        env:
+          DATABASE_URL: sqlite+aiosqlite:///./ci-migration.db
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install web dependencies
+        run: npm ci --no-audit --no-fund
+        working-directory: web
+      - name: Build (includes lint + typecheck)
+        run: npm run build
+        working-directory: web
