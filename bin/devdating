@@ -23,6 +23,8 @@ LOG_DIR="$ROOT/logs"
 mkdir -p "$PID_DIR" "$LOG_DIR"
 
 blue='\033[0;34m'; cyan='\033[0;36m'; purple='\033[1;35m'; green='\033[0;32m'; yellow='\033[1;33m'; red='\033[0;31m'; bold='\033[1m'; reset='\033[0m'
+# Keep V8 heap bounded so `next build` / `npm rebuild next` do not SIGABRT on small-RAM hosts.
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=${DEVDATING_NODE_HEAP:-1536}}"
 usage() {
   cat <<HELP
 DevDating control plane
@@ -85,9 +87,12 @@ web_deps() {
   printf "${cyan}▸${reset} Installing web packages\n"
   (
     cd web
-    npm install --no-audit --no-fund --legacy-peer-deps >/dev/null
-    npm update --no-audit --no-fund --legacy-peer-deps >/dev/null
-    npm rebuild next --no-audit --no-fund >/dev/null
+    npm install --no-audit --no-fund --legacy-peer-deps --loglevel=error
+    npm update --no-audit --no-fund --legacy-peer-deps --loglevel=error
+    if ! npm rebuild next --no-audit --no-fund --loglevel=error; then
+      printf "${red}✖${reset} 'npm rebuild next' failed (low memory?). Retrying with a smaller heap.\n"
+      NODE_OPTIONS="--max-old-space-size=768" npm rebuild next --no-audit --no-fund --loglevel=error
+    fi
   )
 }
 
@@ -144,7 +149,12 @@ case "${1:-help}" in
           cd web
           if [[ ! -f .next/BUILD_ID ]]; then
             echo "Building web app before first launch..." >"$ROOT/logs/web.log"
-            ./node_modules/.bin/next build >>"$ROOT/logs/web.log" 2>&1 || npm run build >>"$ROOT/logs/web.log" 2>&1 || exit 1
+            ./node_modules/.bin/next build >>"$ROOT/logs/web.log" 2>&1 || npm run build >>"$ROOT/logs/web.log" 2>&1 || {
+              printf "${red}✖${reset} Web build failed. Last log lines:\n"
+              tail -n 15 "$ROOT/logs/web.log" || true
+              printf "${yellow}▸${reset} Hint: free RAM or lower the heap: DEVDATING_NODE_HEAP=768 devdating up\n"
+              exit 1
+            }
           fi
           nohup ./node_modules/.bin/next start --hostname 0.0.0.0 --port 3000 >>"$ROOT/logs/web.log" 2>&1 &
           echo $! >"$ROOT/.run/web.pid"
