@@ -1,1 +1,2 @@
 - [02:14:46] README.md rewritten: accurate CLI table, scoring table, troubleshooting section, records workflow(no message)
+- [03:55:02] ruff check clean (line-length 120, B008 ignored for FastAPI DI, migrations excluded); next build green after fixing missing await in apiFetch wrappers; alembic upgrade/downgrade cycle verified fresh + stamped existing DB (1391 issues backfilled, avg difficulty 34.7)(no message)

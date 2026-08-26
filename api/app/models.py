@@ -2,10 +2,20 @@ import enum
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.types import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.types import JSON
 
 from app.db import Base
 
@@ -117,7 +127,9 @@ class Match(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
-    status: Mapped[MatchStatus] = mapped_column(Enum(MatchStatus, name="match_status"), default=MatchStatus.PENDING_PROJECT)
+    status: Mapped[MatchStatus] = mapped_column(
+        Enum(MatchStatus, name="match_status"), default=MatchStatus.PENDING_PROJECT
+    )
     compatibility_score: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False)
     score_breakdown: Mapped[dict] = mapped_column(JSON, default=dict)
     initiated_by: Mapped[str] = mapped_column(String(20), default="DEVELOPER")
@@ -193,6 +205,8 @@ class Issue(Base):
     state: Mapped[str] = mapped_column(String(20), default="OPEN")
     assignees: Mapped[int] = mapped_column(Integer, default=0)
     comments_count: Mapped[int] = mapped_column(Integer, default=0)
+    difficulty_score: Mapped[float] = mapped_column(Numeric(5, 2), default=0)
+    difficulty_confidence: Mapped[float] = mapped_column(Numeric(4, 3), default=0)
     opened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     updated_at_github: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

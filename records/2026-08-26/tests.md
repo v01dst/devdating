@@ -1,0 +1,1 @@
+- [03:55:01] pytest: 17 passed (4 matching, 4 auth sessions, 3 ingest difficulty, 6 routes smoke incl. 401 enforcement + state-mismatch rejection)(no message)

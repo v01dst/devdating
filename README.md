@@ -194,23 +194,24 @@ npm install -g @v01dst/devdating@latest
 devdating update
 ```
 
-If the schema changed, recreate tables:
+Schema changes ship as Alembic migrations and apply automatically during `devdating install` / `devdating update`. If `install` fails on a database created before migrations existed, baseline it once:
 
 ```bash
-cd ~/.devdating/api && ../.venv/bin/python - <<'PY'
-import asyncio
-from app.db import Base, engine
-import app.models
-
-async def upgrade():
-    async with engine.begin() as connection:
-        await connection.run_sync(Base.metadata.create_all)
-
-asyncio.run(upgrade())
-PY
+cd ~/.devdating/api
+../.venv/bin/alembic stamp a58003a00ec6   # mark pre-migration tables as the baseline
+../.venv/bin/alembic upgrade head         # apply everything after it
+../.venv/bin/python ../scripts/backfill_issue_difficulty.py   # score legacy issues (optional)
 ```
 
 Then refresh stale data: `devdating sync-me && devdating sync-bulk 1000 && devdating enrich-languages`.
+</details>
+
+<details>
+<summary><b>Authentication</b></summary>
+
+DevDating uses hybrid auth. Without GitHub OAuth credentials it runs in single-user local mode — no login needed. Set `GITHUB_CLIENT_ID` + `GITHUB_CLIENT_SECRET` (and optionally `GITHUB_REDIRECT_URL`, `WEB_ORIGIN`) to enable real sign-in: the API then issues HMAC-signed session cookies via `/api/v1/auth/github/login → /callback`, and unauthenticated requests get `401`.
+
+The web app proxies API calls through same-origin `/backend/*`, so cookies just work in development without CORS setup.
 </details>
 
 ## 🗺 Roadmap

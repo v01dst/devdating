@@ -1,7 +1,6 @@
-import asyncio
 import os
-from collections import Counter
 import re
+from collections import Counter
 from datetime import UTC, datetime
 
 import httpx
@@ -9,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import async_session_factory
+from app.issues import estimate_issue_difficulty
 from app.models import Issue, Project, User
 
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN") or os.environ.get("GITHUB_CLIENT_SECRET")
@@ -63,7 +63,10 @@ async def search_repositories(session: AsyncSession, languages: list[str], per_l
                 project.forks = item["forks_count"]
                 project.issue_count = item["open_issues_count"]
                 project.is_archived = bool(item["archived"])
-                activity = min(100, item["stargazers_count"] / 200 + item["forks_count"] / 40 + min(item["open_issues_count"], 100) / 2)
+                activity = min(
+                    100,
+                    item["stargazers_count"] / 200 + item["forks_count"] / 40 + min(item["open_issues_count"], 100) / 2,
+                )
                 project.activity_score = round(activity, 2)
                 project.difficulty_level = 2
                 project.synced_at = datetime.now(UTC)
@@ -78,6 +81,35 @@ ISSUE_LABEL_QUERIES = [
     'label:"help wanted"',
     'label:beginner',
 ]
+
+
+def apply_issue_fields(issue: Issue, item: dict, label_filter: set[str] | None = None) -> None:
+    """Upsert issue attributes from a GitHub API payload and persist the
+    estimated difficulty so recommendations never need placeholder data."""
+    labels = sorted({label["name"] for label in item.get("labels", [])})
+    if label_filter is not None:
+        labels = sorted({name for name in labels if name.lower() in label_filter})
+    body = (item.get("body") or "")[:8000]
+    comments_count = item.get("comments", 0)
+    issue.title = item["title"]
+    issue.body = body
+    issue.url = item["html_url"]
+    issue.labels = labels[:12]
+    issue.state = item["state"].upper()
+    issue.assignees = len(item.get("assignees", []))
+    issue.comments_count = comments_count
+    if item.get("created_at"):
+        issue.opened_at = datetime.fromisoformat(item["created_at"].replace("Z", "+00:00"))
+    if item.get("updated_at"):
+        issue.updated_at_github = datetime.fromisoformat(item["updated_at"].replace("Z", "+00:00"))
+    difficulty, confidence, _ = estimate_issue_difficulty(
+        title=item["title"],
+        labels=issue.labels,
+        comments_count=comments_count,
+        body_length=len(body),
+    )
+    issue.difficulty_score = difficulty
+    issue.difficulty_confidence = confidence
 
 
 def parse_repo_url(api_repository_url: str):
@@ -117,7 +149,9 @@ async def upsert_project_from_search_item(session: AsyncSession, item: dict, fal
         forks=repo["forks_count"],
         issue_count=repo["open_issues_count"],
         contributor_count=max(1, min(1000, repo["stargazers_count"] // 50)),
-        activity_score=min(100, repo["stargazers_count"] / 200 + repo["forks_count"] / 40 + min(repo["open_issues_count"], 100) / 2),
+        activity_score=min(
+            100, repo["stargazers_count"] / 200 + repo["forks_count"] / 40 + min(repo["open_issues_count"], 100) / 2
+        ),
         difficulty_level=2.0,
         synced_at=datetime.now(UTC),
     )
@@ -147,7 +181,10 @@ async def bulk_index_issues(session: AsyncSession, target_issues: int = 500, lan
     async with httpx.AsyncClient(base_url="https://api.github.com", headers=headers, timeout=30) as client:
         for query in language_queries:
             for page in range(1, 6):
-                response = await client.get("/search/issues", params={"q": query, "sort": "updated", "order": "desc", "per_page": 100, "page": page})
+                response = await client.get(
+                    "/search/issues",
+                    params={"q": query, "sort": "updated", "order": "desc", "per_page": 100, "page": page},
+                )
                 if response.status_code != 200:
                     break
                 items = response.json().get("items", [])
@@ -171,22 +208,36 @@ async def bulk_index_issues(session: AsyncSession, target_issues: int = 500, lan
                         repo = repo_response.json()
                         if repo.get("archived") or repo.get("fork"):
                             continue
-                        duplicate_id = await session.execute(select(Project).where(Project.github_repo_id == repo["id"]))
+                        duplicate_id = await session.execute(
+                            select(Project).where(Project.github_repo_id == repo["id"])
+                        )
                         project = duplicate_id.scalar_one_or_none()
                         if project is None:
                             project = Project(
-                                github_repo_id=repo["id"], repo_url=repo["html_url"], owner_login=owner,
-                                name=name, description=repo.get("description"), languages=[],
-                                topics=repo.get("topics", [])[:10], license_spdx=(repo.get("license") or {}).get("spdx_id"),
-                                stars=repo["stargazers_count"], forks=repo["forks_count"],
-                                issue_count=repo["open_issues_count"], contributor_count=max(1, min(1000, repo["stargazers_count"] // 50)),
-                                activity_score=min(100, repo["stargazers_count"]/200 + repo["forks_count"]/40 + min(repo["open_issues_count"],100)/2),
-                                difficulty_level=2.0, synced_at=datetime.now(UTC),
+                                github_repo_id=repo["id"],
+                                repo_url=repo["html_url"],
+                                owner_login=owner,
+                                name=name,
+                                description=repo.get("description"),
+                                languages=[],
+                                topics=repo.get("topics", [])[:10],
+                                license_spdx=(repo.get("license") or {}).get("spdx_id"),
+                                stars=repo["stargazers_count"],
+                                forks=repo["forks_count"],
+                                issue_count=repo["open_issues_count"],
+                                contributor_count=max(1, min(1000, repo["stargazers_count"] // 50)),
+                                activity_score=min(
+                                    100,
+                                    repo["stargazers_count"] / 200
+                                    + repo["forks_count"] / 40
+                                    + min(repo["open_issues_count"], 100) / 2,
+                                ),
+                                difficulty_level=2.0,
+                                synced_at=datetime.now(UTC),
                             )
                             session.add(project)
                             await session.flush()
                             projects_created += 1
-                    labels = sorted({label["name"] for label in item.get("labels", [])})
                     existing_issue = await session.execute(
                         select(Issue).where(Issue.project_id == project.id, Issue.issue_number == item["number"])
                     )
@@ -194,17 +245,7 @@ async def bulk_index_issues(session: AsyncSession, target_issues: int = 500, lan
                     if issue is None:
                         issue = Issue(project_id=project.id, issue_number=item["number"])
                         session.add(issue)
-                    issue.title = item["title"]
-                    issue.body = (item.get("body") or "")[:8000]
-                    issue.url = item["html_url"]
-                    issue.labels = labels[:12]
-                    issue.state = item["state"].upper()
-                    issue.assignees = len(item.get("assignees", []))
-                    issue.comments_count = item.get("comments", 0)
-                    if item.get("created_at"):
-                        issue.opened_at = datetime.fromisoformat(item["created_at"].replace("Z", "+00:00"))
-                    if item.get("updated_at"):
-                        issue.updated_at_github = datetime.fromisoformat(item["updated_at"].replace("Z", "+00:00"))
+                    apply_issue_fields(issue, item)
                     processed += 1
                 await session.commit()
                 if processed >= target_issues:
@@ -270,17 +311,7 @@ async def fetch_issues_for_projects(session: AsyncSession, per_project: int = 20
                 if issue is None:
                     issue = Issue(project_id=project.id, issue_number=item["number"])
                     session.add(issue)
-                issue.title = item["title"]
-                issue.body = (item.get("body") or "")[:8000]
-                issue.url = item["html_url"]
-                issue.labels = sorted(labels & GOOD_LABELS)
-                issue.state = item["state"].upper()
-                issue.assignees = len(item.get("assignees", []))
-                issue.comments_count = item.get("comments", 0)
-                if item.get("created_at"):
-                    issue.opened_at = datetime.fromisoformat(item["created_at"].replace("Z", "+00:00"))
-                if item.get("updated_at"):
-                    issue.updated_at_github = datetime.fromisoformat(item["updated_at"].replace("Z", "+00:00"))
+                apply_issue_fields(issue, item, label_filter=GOOD_LABELS)
                 issues_added += 1
         await session.commit()
     return {"issues_processed": issues_added, "projects_scanned": len(projects)}
@@ -365,12 +396,8 @@ async def fetch_community_questions(session: AsyncSession, limit_per_project: in
                 if issue is None:
                     issue = Issue(project_id=project.id, issue_number=item["number"])
                     session.add(issue)
-                issue.title = item["title"]
-                issue.body = (item.get("body") or "")[:8000]
-                issue.url = item["html_url"]
-                issue.labels = sorted(labels & {"question", "q&a", "support", "discussion", "needs-triage"})
-                issue.state = item["state"].upper()
-                issue.comments_count = item.get("comments", 0)
+                question_label_filter = {"question", "q&a", "support", "discussion", "needs-triage"}
+                apply_issue_fields(issue, item, label_filter=question_label_filter)
                 processed += 1
         await session.commit()
     return {"community_questions_processed": processed}
