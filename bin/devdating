@@ -83,16 +83,11 @@ case "${1:-help}" in
       command -v docker >/dev/null && docker compose up --build -d || exit 1
     else
       install_native
-      (cd api && "$ROOT/.venv/bin/python" - <<'PY'
-from app.db import Base, engine
-import app.models
-import asyncio
-async def create():
- async with engine.begin() as c: await c.run_sync(Base.metadata.create_all)
-asyncio.run(create())
-print("Database initialized")
-PY
-)
+      (cd api && "$ROOT/.venv/bin/alembic" upgrade head) || {
+        printf "${yellow}▸${reset} Migration failed on an existing database. If tables predate migrations run:\n"
+        printf "  cd api && ../.venv/bin/alembic stamp a58003a00ec6 && ../.venv/bin/alembic upgrade head\n"
+        exit 1
+      }
     fi
     ;;
   setup-ui)
