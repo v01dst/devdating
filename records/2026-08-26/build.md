@@ -1,0 +1,1 @@
+- [02:14:46] README.md rewritten: accurate CLI table, scoring table, troubleshooting section, records workflow(no message)
