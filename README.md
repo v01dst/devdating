@@ -113,6 +113,7 @@ Some repositories don't expose complete language data through search alone — t
 |---|---|
 | `devdating install [--mode docker\|native]` | Download dependencies and initialize the database |
 | `devdating up [--seed]` | Start web + API services (safe to re-run) |
+| `devdating upd` | Pull latest source, upgrade Python/npm packages, apply migrations, restart |
 | `devdating serve` | Attached foreground process keeping both services alive |
 | `devdating stop` / `restart` | Stop or restart services |
 | `devdating status` | Show service state with PIDs |

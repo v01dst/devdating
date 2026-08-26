@@ -1,3 +1,4 @@
 - [01:44:24] npm publish @v01dst/devdating@1.0.1 blocked: token in ~/.npmrc authenticates as v01dst but registry returns 404 on PUT (no write grant). Needs a write/automation token; version bump already pushed to git(no message)
 - [02:14:46] published @v01dst/devdating@1.0.1 to npm (write token supplied by owner)(no message)
 - [03:55:01] GitHub classic OAuth apps do not support PKCE — implemented state-parameter CSRF instead; PKCE deferred until GitHub App migration(no message)
+- [04:25:42] new command 'devdating upd' (alias: update): git pull --ff-only, pip --upgrade of pinned ranges, npm install+update+rebuild, alembic upgrade head, auto-restart if services were running, web rebuilt against fresh deps. Verified end-to-end on live stack(no message)

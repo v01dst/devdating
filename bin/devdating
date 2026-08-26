@@ -34,13 +34,13 @@ Commands:
   install [--mode docker|native]   Install dependencies and initialize data
   setup-ui                         Launch the polished local installer UI
   up [--seed]                      Start API and web services
+  upd [--mode docker|native]       Pull source, upgrade packages, migrate, restart
   down                             Stop services
   status                           Show service state
   logs [api|web]                   Tail service logs
   seed                             Load demo projects and developer profile
   open-setup                       Print the setup URL
   doctor                           Check prerequisites
-  update                           Pull updates and reinstall dependencies
   uninstall                        Stop services and remove generated files
 HELP
 }
@@ -61,17 +61,39 @@ wait_for() {
   printf "${red}✖${reset} $name failed to become ready\n"; return 1
 }
 
-install_native() {
-  printf "${cyan}▸${reset} Creating Python environment\n"
+PY_DEPS=(
+  "fastapi>=0.111,<0.116"
+  "uvicorn[standard]>=0.30,<0.31"
+  "sqlalchemy[asyncio]>=2,<3"
+  "aiosqlite>=0.19"
+  "pydantic>=2,<3"
+  "pydantic-settings>=2"
+  "httpx>=0.27,<1"
+  "itsdangerous>=2.2,<3"
+  "alembic>=1.13,<2"
+)
+
+python_deps() {
+  printf "${cyan}▸${reset} Installing Python packages\n"
   python3 -m venv .venv
   . .venv/bin/activate
   pip install --upgrade pip >/dev/null
-  pip install "fastapi>=0.111,<0.116" "uvicorn[standard]>=0.30,<0.31" "sqlalchemy[asyncio]>=2,<3" "aiosqlite>=0.19" "pydantic>=2,<3" "pydantic-settings>=2" "httpx>=0.27,<1" >/dev/null
-  printf "${cyan}▸${reset} Installing web dependencies\n"
-  cd web
-  npm install --no-audit --no-fund --legacy-peer-deps
-  npm rebuild next --no-audit --no-fund
-  cd ..
+  pip install --upgrade "${PY_DEPS[@]}" >/dev/null
+}
+
+web_deps() {
+  printf "${cyan}▸${reset} Installing web packages\n"
+  (
+    cd web
+    npm install --no-audit --no-fund --legacy-peer-deps >/dev/null
+    npm update --no-audit --no-fund --legacy-peer-deps >/dev/null
+    npm rebuild next --no-audit --no-fund >/dev/null
+  )
+}
+
+install_native() {
+  python_deps
+  web_deps
 }
 
 case "${1:-help}" in
@@ -184,9 +206,40 @@ case "${1:-help}" in
     command -v python3 >/dev/null && echo Python OK || exit 1
     command -v node >/dev/null && echo Node OK || exit 1
     command -v npm >/dev/null && echo npm OK || exit 1 ;;
-  update)
-    git pull --ff-only
-    "$0" install ;;
+  upd|update)
+    shift || true
+    mode="$MODE"
+    while (($#)); do case "$1" in --mode) mode="$2"; shift 2;; *) shift;; esac; done
+    if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      printf "${cyan}▸${reset} Pulling latest source\n"
+      git pull --ff-only >/dev/null 2>&1 \
+        && printf "${green}✔${reset} Source up to date\n" \
+        || printf "${yellow}▸${reset} Could not fast-forward (local commits/changes). Updating packages only.\n"
+    fi
+    if [[ "$mode" == docker ]]; then
+      command -v docker >/dev/null || exit 1
+      docker compose pull
+      docker compose up --build -d
+      exit $?
+    fi
+    [[ -d .venv ]] || "$0" install
+    python_deps
+    web_deps
+    printf "${cyan}▸${reset} Applying database migrations\n"
+    (cd api && "$ROOT/.venv/bin/alembic" upgrade head) || {
+      printf "${yellow}▸${reset} Migration failed. If this DB predates migrations run:\n"
+      printf "  cd api && ../.venv/bin/alembic stamp a58003a00ec6 && ../.venv/bin/alembic upgrade head\n"
+      exit 1
+    }
+    rm -f web/.next/BUILD_ID
+    if running "$PID_DIR/api.pid" || running "$PID_DIR/web.pid"; then
+      printf "${cyan}▸${reset} Restarting services with updated packages\n"
+      "$0" down
+      "$0" up
+    else
+      printf "${green}✔${reset} Packages updated. Run \`devdating up\` to start (web rebuilds on first launch).\n"
+    fi
+    ;;
   uninstall)
     "$0" down || true ;;
   help|--help|-h|*) usage ;;
