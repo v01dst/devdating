@@ -10,14 +10,19 @@ def learning_paths(tech_stack: list[str], experience_level: str):
             "id": "first-pr",
             "title": "Ship Your First Pull Request",
             "outcome": "Understand fork → branch → commit → pull request without fear.",
-            "steps": ["Pick documentation issue", "Set up repository locally", "Create focused branch", "Open linked PR"],
+            "steps": [
+                "Pick documentation issue", "Set up repository locally", "Create focused branch", "Open linked PR"
+            ],
             "estimated_days": 1,
         },
         {
             "id": "tests-confidence",
             "title": "Learn Through Tests",
             "outcome": "Use failing tests to understand code safely.",
-            "steps": ["Find test-labeled issue", "Run existing tests", "Add one missing test", "Refactor only what the test proves"],
+            "steps": [
+                "Find test-labeled issue", "Run existing tests", "Add one missing test",
+                "Refactor only what the test proves"
+            ],
             "estimated_days": 2,
         },
         {
@@ -31,7 +36,9 @@ def learning_paths(tech_stack: list[str], experience_level: str):
             "id": "community-triage",
             "title": "Learn by Community Triage",
             "outcome": "Build project context while helping maintainers.",
-            "steps": ["Answer a beginner question", "Improve unclear docs", "Reproduce reported bugs", "Summarize findings"],
+            "steps": [
+                "Answer a beginner question", "Improve unclear docs", "Reproduce reported bugs", "Summarize findings"
+            ],
             "estimated_days": 2,
         },
     ]
@@ -55,7 +62,6 @@ def contribution_readiness(issues: list, tech_stack: list[str]):
         if not issue.project or not stack.intersection({lang.lower() for lang in issue.project.languages}):
             continue
         matched_language.append(issue)
-    unassigned = [i for i in issues if i.assignees == 0]
     score = min(100, len(stack) * 12 + len(easy) / 10 + len(matched_language) / 20)
     return {
         "readiness_score": round(score),
