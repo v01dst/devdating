@@ -7,12 +7,23 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from app.auth import require_development_user
+from app.auth import require_user
 from app.db import get_db
 from app.github_ingest import sync_all
 from app.issues import estimate_issue_difficulty
 from app.matching import build_reasons, calculate_compatibility
-from app.models import Conversation, Issue, IssueRecommendation, Match, MatchStatus, Message, Project, Swipe, SwipeDirection, User
+from app.models import (
+    Conversation,
+    Issue,
+    IssueRecommendation,
+    Match,
+    MatchStatus,
+    Message,
+    Project,
+    Swipe,
+    SwipeDirection,
+    User,
+)
 from app.schemas import (
     DiscoveryCard,
     MatchRead,
@@ -45,14 +56,14 @@ async def healthz() -> dict[str, str]:
 
 
 @router.get("/me", response_model=UserRead)
-async def read_current_user(user: User = Depends(require_development_user)) -> User:
+async def read_current_user(user: User = Depends(require_user)) -> User:
     return user
 
 
 @router.patch("/me/preferences", response_model=UserRead)
 async def update_preferences(
     payload: UserPreferencesUpdate,
-    user: User = Depends(require_development_user),
+    user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ) -> User:
     updates = payload.model_dump(exclude_unset=True)
@@ -76,7 +87,7 @@ async def update_preferences(
 @router.get("/discovery/cards", response_model=list[DiscoveryCard])
 async def discovery_cards(
     limit: int = Query(default=20, ge=1, le=50),
-    user: User = Depends(require_development_user),
+    user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[DiscoveryCard]:
     swiped_subquery = select(Swipe.project_id).where(Swipe.user_id == user.id).scalar_subquery()
@@ -108,7 +119,11 @@ async def discovery_cards(
         scored.append((score, breakdown, project))
     scored.sort(key=lambda item: item[0], reverse=True)
     return [
-        DiscoveryCard(project=ProjectRead.model_validate(project), compatibility_score=score, reasons=build_reasons(breakdown))
+        DiscoveryCard(
+            project=ProjectRead.model_validate(project),
+            compatibility_score=score,
+            reasons=build_reasons(breakdown),
+        )
         for score, breakdown, project in scored[:limit]
     ]
 
@@ -117,7 +132,7 @@ async def discovery_cards(
 async def create_swipe(
     payload: SwipeCreate,
     background_tasks: BackgroundTasks,
-    user: User = Depends(require_development_user),
+    user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     project_result = await db.execute(select(Project).where(Project.id == payload.project_id))
@@ -204,23 +219,44 @@ async def create_issue_recommendation_task(match_id: uuid.UUID) -> None:
         if existing_result.scalar_one_or_none() is not None:
             return
         project = match.project
-        issue_number = max(1, project.issue_count)
-        difficulty, confidence, rationale = estimate_issue_difficulty(
-            title="Starter improvement",
-            labels=["good first issue"],
-            comments_count=1,
-            body_length=700,
+        candidate_result = await db.execute(
+            select(Issue)
+            .where(
+                Issue.project_id == project.id,
+                Issue.state == "OPEN",
+                Issue.assignees == 0,
+            )
+            .order_by(Issue.difficulty_score.asc(), Issue.comments_count.asc())
+            .limit(1)
         )
+        issue = candidate_result.scalar_one_or_none()
+        if issue is not None:
+            difficulty, confidence = float(issue.difficulty_score), float(issue.difficulty_confidence)
+            title, url = f"#{issue.issue_number}: {issue.title}", issue.url
+            rationale_bits = [f"labeled {label}" for label in issue.labels[:2] if label]
+            rationale = ", ".join(rationale_bits) or "easiest open unassigned issue in this repository"
+            features = {"labels": issue.labels, "source": "indexed-issues", "issue_id": str(issue.id)}
+        else:
+            difficulty, confidence, rationale = estimate_issue_difficulty(
+                title="Starter improvement",
+                labels=["good first issue"],
+                comments_count=1,
+                body_length=700,
+            )
+            issue_number = max(1, project.issue_count)
+            title = f"#{issue_number}: Starter improvement"
+            url = f"{project.repo_url}/issues/{issue_number}"
+            features = {"labels": ["good first issue"], "source": "placeholder-sync"}
         recommendation = IssueRecommendation(
             match_id=match.id,
             project_id=project.id,
-            issue_number=issue_number,
-            title=f"#{issue_number}: Starter improvement",
-            url=f"{project.repo_url}/issues/{issue_number}",
+            issue_number=issue.issue_number if issue is not None else max(1, project.issue_count),
+            title=title,
+            url=url,
             difficulty_score=difficulty,
             confidence=confidence,
             rationale=rationale,
-            features={"labels": ["good first issue"], "source": "placeholder-sync"},
+            features=features,
             stale_at=datetime.now(UTC) + timedelta(days=7),
         )
         db.add(recommendation)
@@ -231,7 +267,7 @@ async def create_issue_recommendation_task(match_id: uuid.UUID) -> None:
 
 @router.get("/matches", response_model=list[MatchRead])
 async def list_matches(
-    user: User = Depends(require_development_user), db: AsyncSession = Depends(get_db)
+    user: User = Depends(require_user), db: AsyncSession = Depends(get_db)
 ) -> list[Match]:
     result = await db.execute(
         select(Match).where(Match.user_id == user.id).order_by(Match.created_at.desc()).limit(100)
@@ -242,7 +278,7 @@ async def list_matches(
 @router.get("/matches/{match_id}", response_model=MatchRead)
 async def read_match(
     match_id: uuid.UUID,
-    user: User = Depends(require_development_user),
+    user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ) -> Match:
     return await _get_owned_match(match_id, user, db)
@@ -251,7 +287,7 @@ async def read_match(
 @router.get("/matches/{match_id}/issue-recommendation")
 async def get_issue_recommendation(
     match_id: uuid.UUID,
-    user: User = Depends(require_development_user),
+    user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     await _get_owned_match(match_id, user, db)
@@ -276,7 +312,7 @@ async def recommended_issues(
     language: str | None = None,
     search: str | None = None,
     label: str | None = None,
-    user: User = Depends(require_development_user),
+    user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ):
     language_filter = language.strip().lower() if language and language.strip() else None
@@ -303,7 +339,9 @@ async def recommended_issues(
             continue
         if label_filter and not any(label_filter in item.lower() for item in issue.labels):
             continue
-        if search_filter and search_filter not in f"{issue.title} {issue.body or ''} {project.name} {project.description or ''}".lower():
+        if search_filter and search_filter not in (
+            f"{issue.title} {issue.body or ''} {project.name} {project.description or ''}".lower()
+        ):
             continue
         overlap = len(user_stack & project_languages)
         label_bonus = min(len(issue.labels), 3) * 4
@@ -317,7 +355,7 @@ async def recommended_issues(
             "issue_id": str(issue.id), "title": issue.title, "url": issue.url,
             "project_name": project.name, "repo_url": project.repo_url,
             "languages": project.languages, "labels": issue.labels,
-            "difficulty": min(100, max(5, issue.comments_count * 8 + len(issue.body or "") / 800)),
+            "difficulty": float(issue.difficulty_score),
             "score": round(score, 2), "reasons": reasons or ["Beginner-friendly open issue"],
         })
     return sorted(scored, key=lambda item: item["score"], reverse=True)[:limit]
@@ -385,7 +423,7 @@ async def public_projects(
 @router.get("/me/community-questions")
 async def community_questions(
     limit: int = Query(default=20, ge=1, le=50),
-    user: User = Depends(require_development_user),
+    user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
@@ -414,11 +452,15 @@ async def community_questions(
     return sorted(output, key=lambda item: item["relevance"], reverse=True)[:limit]
 
 
-@router.post("/conversations/{conversation_id}/messages", response_model=MessageRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/conversations/{conversation_id}/messages",
+    response_model=MessageRead,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_message(
     conversation_id: uuid.UUID,
     payload: MessageCreate,
-    user: User = Depends(require_development_user),
+    user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ) -> Message:
     result = await db.execute(
@@ -446,7 +488,7 @@ async def list_messages(
     conversation_id: uuid.UUID,
     before: datetime | None = None,
     limit: int = Query(default=50, ge=1, le=200),
-    user: User = Depends(require_development_user),
+    user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[Message]:
     query = select(Message).where(Message.conversation_id == conversation_id)

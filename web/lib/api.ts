@@ -1,14 +1,19 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const BASE = "/backend";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await fetch(`${BASE}${path}`, {
     ...init,
+    credentials: "same-origin",
     headers: {
       "Content-Type": "application/json",
-      Authorization: "Bearer local-development-token",
       ...init?.headers,
     },
   });
+
+  if (response.status === 401) {
+    window.location.href = `${BASE}/api/v1/auth/github/login`;
+    throw new Error("Authentication required");
+  }
 
   if (!response.ok) {
     throw new Error(`API request failed: ${response.status}`);

@@ -1,15 +1,14 @@
 import { TopNav } from "@/components/TopNav";
+import { apiFetch } from "@/lib/server-api";
 
 type SearchParams = { language?: string; search?: string; topic?: string; sort?: string };
 
 async function getProjects(query: URLSearchParams) {
-  const response = await fetch(`${process.env.API_URL ?? "http://localhost:8000"}/api/v1/projects/public?${query}`, { cache: "no-store" });
-  return response.ok ? response.json() : [];
+  return (await apiFetch<any[]>(`/api/v1/projects/public?${query}`)) ?? [];
 }
 
 async function getLanguages() {
-  const response = await fetch(`${process.env.API_URL ?? "http://localhost:8000"}/api/v1/meta/languages`, { cache: "no-store" });
-  return response.ok ? response.json() : [];
+  return (await apiFetch<any[]>("/api/v1/meta/languages")) ?? [];
 }
 
 export default async function ProjectsPage({ searchParams }: { searchParams: SearchParams }) {

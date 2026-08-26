@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     github_client_id: str = ""
     github_client_secret: str = ""
+    github_redirect_url: str = ""
+    web_origin: str = "http://localhost:3000"
     session_secret: str = "development-secret"
     environment: str = "local"
     match_threshold: float = 65

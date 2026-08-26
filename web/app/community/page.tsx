@@ -1,13 +1,10 @@
 import { TopNav } from "@/components/TopNav";
+import { apiFetch } from "@/lib/server-api";
 
 export const metadata = { title: "Community Questions — DevDating" };
 
 async function getQuestions() {
-  const response = await fetch(`${process.env.API_URL ?? "http://localhost:8000"}/api/v1/me/community-questions?limit=30`, {
-    headers: { Authorization: "Bearer local-development-token" }, cache: "no-store",
-  });
-  if (!response.ok) return [];
-  return response.json();
+  return (await apiFetch<any[]>("/api/v1/me/community-questions?limit=30")) ?? [];
 }
 
 export default async function CommunityPage() {
