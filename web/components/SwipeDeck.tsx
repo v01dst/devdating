@@ -81,7 +81,10 @@ export function SwipeDeck() {
   const swipeMutation = useMutation({
     mutationFn: ({ projectId, direction }: { projectId: string; direction: SwipeDirection }) =>
       api.swipe(projectId, direction),
-    onSuccess: (result) => {
+    onSuccess: (result, variables) => {
+      queryClient.setQueryData<DiscoveryCard[]>(["discovery-cards"], (old) =>
+        old ? old.filter((card) => card.project.id !== variables.projectId) : old,
+      );
       setFeedback(result.match_created ? `Match created! Score ${result.compatibility_score}` : "Preference saved");
     },
     onError: () => setFeedback("Could not save that swipe"),

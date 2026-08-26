@@ -56,7 +56,7 @@ async def search_repositories(session: AsyncSession, languages: list[str], per_l
                 project.owner_login = item["owner"]["login"]
                 project.name = item["name"]
                 project.description = item.get("description")
-                project.languages = [language]
+                project.languages = list(dict.fromkeys((project.languages or []) + [language]))[:8]
                 project.topics = item.get("topics", [])[:10]
                 project.license_spdx = (item.get("license") or {}).get("spdx_id")
                 project.stars = item["stargazers_count"]
@@ -89,21 +89,24 @@ async def upsert_project_from_search_item(session: AsyncSession, item: dict, fal
     owner, name = parse_repo_url(item["repository_url"])
     if not owner:
         return None
-    repo_response = None
     result = await session.execute(select(Project).where(Project.owner_login == owner, Project.name == name))
     project = result.scalar_one_or_none()
     if project is not None:
         return project
-    repo_response = await client_for_projects().get(f"/repos/{owner}/{name}")
+    async with client_for_projects() as client:
+        repo_response = await client.get(f"/repos/{owner}/{name}")
     if repo_response.status_code != 200:
         return None
     repo = repo_response.json()
     if repo.get("archived") or repo.get("fork"):
         return None
+    duplicate_id = await session.execute(select(Project).where(Project.github_repo_id == repo["id"]))
+    project = duplicate_id.scalar_one_or_none()
+    if project is not None:
+        return project
     project = Project(
         github_repo_id=repo["id"],
         repo_url=repo["html_url"],
-        github_repo_id_unique=repo["id"],
         owner_login=owner,
         name=name,
         description=repo.get("description"),
@@ -184,9 +187,6 @@ async def bulk_index_issues(session: AsyncSession, target_issues: int = 500, lan
                             await session.flush()
                             projects_created += 1
                     labels = sorted({label["name"] for label in item.get("labels", [])})
-                    issue_key = (project.id, item["number"])
-                    if issue_key in {(p, n) for p, n in []}:
-                        continue
                     existing_issue = await session.execute(
                         select(Issue).where(Issue.project_id == project.id, Issue.issue_number == item["number"])
                     )

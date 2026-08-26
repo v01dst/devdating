@@ -1,4 +1,5 @@
 import asyncio
+import zlib
 from sqlalchemy import select
 from app.db import Base
 from app.db import SessionLocal as async_session_factory, engine
@@ -25,7 +26,7 @@ async def reset_and_seed():
         for row in PROJECTS:
             repo_url,owner,name,languages,topics,stars,forks,issues,activity,difficulty = row
             if not (await db.execute(select(Project).where(Project.repo_url==repo_url))).scalar_one_or_none():
-                db.add(Project(repo_url=repo_url, github_repo_id=hash(repo_url)%100000000, owner_login=owner,name=name,
+                db.add(Project(repo_url=repo_url, github_repo_id=zlib.crc32(repo_url.encode()) % 100000000, owner_login=owner,name=name,
                                description=f"A production-inspired {name.lower()} project with approachable contribution paths.",
                                languages=languages,topics=topics,stars=stars,forks=forks,issue_count=issues,
                                contributor_count=max(1, issues//8),activity_score=activity,difficulty_level=difficulty,synced_at=None))

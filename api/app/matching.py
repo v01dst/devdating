@@ -29,15 +29,19 @@ def calculate_compatibility(
     total_languages = len(normalized_user_stack | normalized_languages)
     shared_ratio = len(shared_languages) / total_languages if total_languages else 0
 
+    # Projects with no technology overlap are never recommended regardless of
+    # activity or size, so auxiliary signals stay gated on shared languages.
+    relevant = bool(shared_languages)
+
     level_distance = abs(float(user_experience_level) - clamp(project_difficulty_level, 0, 4)) / 4
     activity = clamp(float(project_activity_score) / 100)
     pressure_denominator = max(project_issue_count, 1)
     pressure = clamp(project_contributor_count / pressure_denominator)
 
     language_points = shared_ratio * 40
-    experience_points = (1 - level_distance) * 30
-    activity_points = activity * 20
-    demand_points = (1 - pressure) * 10
+    experience_points = (1 - level_distance) * 30 if relevant else 0
+    activity_points = activity * 20 if relevant else 0
+    demand_points = (1 - pressure) * 10 if relevant else 0
     score = round(language_points + experience_points + activity_points + demand_points, 2)
 
     breakdown = {
@@ -66,7 +70,7 @@ def build_reasons(breakdown: dict) -> list[str]:
 
 
 def infer_experience_score(public_repos: int, followers: int, contributions: int) -> float:
-    return min(100, public_repos * 1.5 + followers * 0.8 + contributions * 2)
+    return min(100, public_repos * 1.5 + followers * 0.5 + contributions * 1.0)
 
 
 def experience_level_from_score(score: float) -> str:

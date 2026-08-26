@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { TopNav } from "@/components/TopNav";
 
 type SearchParams = { language?: string; search?: string; label?: string };
@@ -49,7 +48,7 @@ export default async function IssuesPage({ searchParams }: { searchParams: Searc
             <h2 className="mt-3 line-clamp-3 font-semibold leading-snug group-hover:text-accent-soft">{issue.title}</h2>
             <div className="mt-4 flex flex-wrap gap-2">{issue.languages.slice(0,2).map((x:string)=><span key={x} className="rounded-full border border-white/15 px-2 py-1 text-xs">{x}</span>)}</div>
             <ul className="mt-4 space-y-1 text-sm text-white/60">{issue.reasons.slice(0,2).map((r:string)=><li key={r}>✦ {r}</li>)}</ul>
-            <a href={issue.url} target="_blank" rel="noreferrer" className="mt-4 block rounded-full bg-white/10 py-2 text-center text-sm font-medium transition hover:bg-white/20">Open issue</a>
+            <span className="mt-4 block rounded-full bg-white/10 py-2 text-center text-sm font-medium transition group-hover:bg-white/20">Open issue</span>
           </a>
         ))}
       </div>

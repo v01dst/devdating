@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { TopNav } from "@/components/TopNav";
 
 export const metadata = { title: "Community Questions — DevDating" };

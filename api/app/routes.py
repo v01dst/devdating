@@ -305,7 +305,6 @@ async def recommended_issues(
             continue
         if search_filter and search_filter not in f"{issue.title} {issue.body or ''} {project.name} {project.description or ''}".lower():
             continue
-        project_languages = {item.lower() for item in project.languages}
         overlap = len(user_stack & project_languages)
         label_bonus = min(len(issue.labels), 3) * 4
         freshness = max(0, 20 - issue.comments_count * 2)
@@ -430,8 +429,11 @@ async def create_message(
     conversation = result.scalar_one_or_none()
     if conversation is None or conversation.match.user_id != user.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Conversation not found")
-    message = Message(conversation_id=conversation.id, sender_user_id=user.id, body=payload.body.strip())
-    conversation.last_message_at = message.created_at
+    now = datetime.now(UTC)
+    message = Message(
+        conversation_id=conversation.id, sender_user_id=user.id, body=payload.body.strip(), created_at=now
+    )
+    conversation.last_message_at = now
     db.add(message)
     db.add(conversation)
     await db.commit()
