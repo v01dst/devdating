@@ -17,9 +17,12 @@ Continuously improve the project: fix UI/responsiveness, header/footer, README i
 - [x] Fix: Socket.IO client connects directly to API origin (true WebSocket; proxy dropped upgrades + trailing-slash 308)
 - [x] Improvement: sync-me infers experience level from GitHub stats (public_repos, followers)
 - [x] Home redirect -> /discover
+- [x] Fix: config default DB -> portable SQLite (alembic/manual runs no longer hang on postgres default)
+- [x] Fix: bin/devdating ensure_schema (alembic upgrade head) before sync/seed commands
+- [x] README: troubleshooting snippet sources devdating.env before direct alembic
 
 ## Remaining / Candidates
-- [ ] Sync scripts still use create_all (bulk_sync, sync_personal, seed_local) — reconcile with Alembic
+- [ ] Sync scripts still call create_all (bulk_sync, sync_personal) — redundant now that ensure_schema runs alembic; could remove for cleanliness
 - [ ] OAuth-mode Socket.IO auth relies on cookie (cross-origin direct connection won't send it) — needs token-in-query or shared cookie domain
 - [ ] Notification delivery (mentions, matches, messages)
 - [ ] Contribution tracking (issue -> PR -> merge)
