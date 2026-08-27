@@ -95,6 +95,10 @@ class Project(Base):
     activity_score: Mapped[float] = mapped_column(Numeric(5, 2), default=0)
     difficulty_level: Mapped[float] = mapped_column(Numeric(4, 2), default=2.5)
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False)
+    maintainer_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    maintainer_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)

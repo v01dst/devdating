@@ -76,6 +76,10 @@ class MessageCreate(BaseModel):
     body: str = Field(min_length=1, max_length=8000)
 
 
+class MatchRespond(BaseModel):
+    accept: bool
+
+
 class MessageRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

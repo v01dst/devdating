@@ -151,7 +151,7 @@ case "${1:-help}" in
           set -a
           source "$ROOT/devdating.env"
           set +a
-          nohup "$ROOT/.venv/bin/uvicorn" app.main:app --host 0.0.0.0 --port 8000 >"$ROOT/logs/api.log" 2>&1 &
+          nohup "$ROOT/.venv/bin/uvicorn" app.asgi:application --host 0.0.0.0 --port 8000 >"$ROOT/logs/api.log" 2>&1 &
           echo $! >"$ROOT/.run/api.pid"
         )
         wait_for http://localhost:8000/healthz API "$PID_DIR/api.pid" || exit 1

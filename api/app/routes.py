@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from app.auth import require_user
+from app.auth import oauth_configured, require_user
 from app.db import get_db
 from app.github_ingest import sync_all
 from app.issues import estimate_issue_difficulty
@@ -28,6 +28,7 @@ from app.models import (
 from app.schemas import (
     DiscoveryCard,
     MatchRead,
+    MatchRespond,
     MessageCreate,
     MessageRead,
     ProjectRead,
@@ -197,7 +198,9 @@ async def create_swipe(
         )
         match = match_result.scalar_one_or_none()
         if match is None:
-            auto_match = True
+            # Projects with a claimed maintainer require two-way consent.
+            needs_maintainer = project.maintainer_user_id is not None
+            auto_match = not needs_maintainer
             match = Match(
                 user_id=user.id,
                 project_id=project.id,
@@ -332,6 +335,100 @@ async def get_issue_recommendation(
         "rationale": recommendation.rationale,
         "status": recommendation.status,
     }
+
+
+@router.post("/projects/{project_id}/claim", status_code=status.HTTP_201_CREATED)
+async def claim_project(
+    project_id: uuid.UUID,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    project = await db.get(Project, project_id)
+    if project is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Project not found")
+    if project.maintainer_user_id is not None and project.maintainer_user_id != user.id:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="Project already has a maintainer")
+    project.maintainer_user_id = user.id
+    project.maintainer_verified = oauth_configured()
+    await db.commit()
+    return {"project_id": str(project.id), "claimed": True, "verified": project.maintainer_verified}
+
+
+@router.get("/me/maintained-projects")
+async def maintained_projects(
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    result = await db.execute(
+        select(Project).where(Project.maintainer_user_id == user.id).order_by(Project.name.asc())
+    )
+    projects = result.scalars().all()
+    return [
+        {
+            "id": str(project.id),
+            "owner_login": project.owner_login,
+            "name": project.name,
+            "repo_url": project.repo_url,
+            "stars": project.stars,
+            "verified": project.maintainer_verified,
+        }
+        for project in projects
+    ]
+
+
+@router.get("/me/incoming-matches")
+async def incoming_matches(
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    result = await db.execute(
+        select(Match, Project, User)
+        .join(Project, Match.project_id == Project.id)
+        .join(User, Match.user_id == User.id)
+        .where(Project.maintainer_user_id == user.id, Match.status == MatchStatus.PENDING_PROJECT)
+        .order_by(Match.created_at.desc())
+    )
+    rows = result.all()
+    return [
+        {
+            "match_id": str(match.id),
+            "compatibility_score": float(match.compatibility_score),
+            "created_at": match.created_at.isoformat(),
+            "developer": developer.github_login,
+            "project": project.name,
+        }
+        for match, project, developer in rows
+    ]
+
+
+@router.post("/matches/{match_id}/respond", response_model=MatchRead)
+async def respond_to_match(
+    match_id: uuid.UUID,
+    payload: MatchRespond,
+    background_tasks: BackgroundTasks,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+) -> Match:
+    result = await db.execute(
+        select(Match)
+        .options(joinedload(Match.project), joinedload(Match.conversation))
+        .where(Match.id == match_id)
+    )
+    match = result.scalars().unique().one_or_none()
+    if match is None or match.project.maintainer_user_id != user.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Match not found")
+    if match.status != MatchStatus.PENDING_PROJECT:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="Match already resolved")
+    if payload.accept:
+        match.status = MatchStatus.MATCHED
+        match.matched_at = datetime.now(UTC)
+        await db.commit()
+        background_tasks.add_task(create_issue_recommendation_task, match.id)
+    else:
+        match.status = MatchStatus.DECLINED
+        await db.commit()
+    await db.refresh(match)
+    return match
 
 
 @router.get("/me/recommended-issues")

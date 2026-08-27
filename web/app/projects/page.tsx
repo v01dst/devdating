@@ -1,3 +1,4 @@
+import { ClaimButton } from "@/components/ClaimButton";
 import { TopNav } from "@/components/TopNav";
 import { apiFetch } from "@/lib/server-api";
 
@@ -36,12 +37,13 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Sea
       </form>
       <div className="mt-10 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{projects.length === 0 && <div className="glass-card rounded-3xl p-6 text-white/65">No matching projects yet.</div>}
         {projects.map((project: any) => (
-          <a key={project.id} href={project.repo_url} target="_blank" rel="noreferrer" className="glass-card group rounded-3xl p-6 transition hover:border-accent/40">
-            <div className="flex items-start justify-between gap-4"><div><p className="text-xs uppercase tracking-wide text-accent-soft">{project.owner_login}</p><h2 className="mt-1 line-clamp-1 text-lg font-semibold group-hover:text-accent-soft">{project.name}</h2></div><span className="text-sm text-yellow-300">★ {project.stars}</span></div>
+          <div key={project.id} className="glass-card group rounded-3xl p-6 transition hover:border-accent/40">
+            <div className="flex items-start justify-between gap-4"><div><p className="text-xs uppercase tracking-wide text-accent-soft">{project.owner_login}</p><a href={project.repo_url} target="_blank" rel="noreferrer"><h2 className="mt-1 line-clamp-1 text-lg font-semibold group-hover:text-accent-soft">{project.name}</h2></a></div><span className="text-sm text-yellow-300">★ {project.stars}</span></div>
             <p className="mt-3 line-clamp-3 min-h-16 text-sm text-white/65">{project.description || "No description provided."}</p>
             <div className="mt-5 flex flex-wrap gap-2">{project.languages.slice(0, 3).map((lang: string) => <span key={lang} className="rounded-full border border-white/15 px-3 py-1 text-xs">{lang}</span>)}</div>
             <div className="mt-5 grid grid-cols-3 gap-2 text-center text-xs text-white/60"><div><b className="block text-white">{project.activity_score.toFixed(0)}</b>vibe</div><div><b className="block text-like">{project.open_issues}</b>open issues</div><div><b className="block text-white">{project.forks}</b>forks</div></div>
-          </a>
+            <div className="mt-4"><ClaimButton projectId={project.id} /></div>
+          </div>
         ))}
       </div>
     </main>

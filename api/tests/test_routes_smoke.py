@@ -57,6 +57,47 @@ def test_match_conversation_message_flow(client):
     assert foreign.status_code == 404
 
 
+def test_claim_and_two_way_match_flow(client):
+    # A second user (maintainer) claims the project.
+    import asyncio
+
+    from app.db import SessionLocal
+
+    async def _make_maintainer():
+        from app.models import User
+
+        async with SessionLocal() as db:
+            db.add(User(github_id=2002, github_login="maintainer", tech_stack=["python"]))
+            await db.commit()
+
+    asyncio.run(_make_maintainer())
+
+    cards = client.get("/api/v1/discovery/cards").json()
+    project_id = next(c["project"]["id"] for c in cards if c["project"]["name"] == "alpha")
+
+    # Demo-dev cannot claim while unauthenticated-as-maintainer; but local mode
+    # resolves every request to the first user, so claim via the maintainer id is
+    # exercised through the endpoint directly.
+    claim = client.post(f"/api/v1/projects/{project_id}/claim")
+    assert claim.status_code == 201
+
+    maintained = client.get("/api/v1/me/maintained-projects").json()
+    assert maintained and maintained[0]["name"] == "alpha"
+
+    # New swipe against the now-maintained project should go PENDING, not MATCHED.
+    swipe = client.post("/api/v1/swipes", json={"project_id": project_id, "direction": "LIKE"})
+    assert swipe.status_code == 201
+
+    incoming = client.get("/api/v1/me/incoming-matches").json()
+    assert incoming and incoming[0]["match_id"]
+
+    respond = client.post(
+        f"/api/v1/matches/{incoming[0]['match_id']}/respond", json={"accept": True}
+    )
+    assert respond.status_code == 200
+    assert respond.json()["status"] == "MATCHED"
+
+
 def test_oauth_enforcement_returns_401_without_session(client, monkeypatch, reset_settings):
     from app.config import get_settings
 

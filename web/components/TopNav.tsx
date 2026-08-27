@@ -6,6 +6,7 @@ const links = [
   { href: "/issues", label: "Issues" },
   { href: "/community", label: "Community" },
   { href: "/matches", label: "Matches" },
+  { href: "/maintainer", label: "Maintainer" },
   { href: "/profile", label: "Profile" },
 ];
 

@@ -14,7 +14,7 @@ trap cleanup EXIT INT TERM
   cd api
   export $(grep -v '^#' "$ROOT/devdating.env" | xargs)
   export PYTHONPATH="$ROOT/api"
-  exec "$ROOT/.venv/bin/uvicorn" app.main:app --host 0.0.0.0 --port 8000
+  exec "$ROOT/.venv/bin/uvicorn" app.asgi:application --host 0.0.0.0 --port 8000
 ) & echo $! >.run/api.pid
 
 (
