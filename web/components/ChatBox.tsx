@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
 
+const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
 type Message = { id: string; sender_user_id: string; body: string; created_at: string };
 
 function formatTime(value: string) {
@@ -29,8 +31,9 @@ export function ChatBox({ conversationId }: { conversationId: string }) {
       })
       .catch(() => {});
 
-    // Realtime updates over Socket.IO (same-origin /backend proxy).
-    const socket = io("/backend", { path: "/backend/socket.io", transports: ["websocket", "polling"] });
+    // Realtime updates over Socket.IO, connected directly to the API origin so
+    // WebSocket upgrades are not dropped by the Next.js rewrite proxy.
+    const socket = io(API_ORIGIN, { path: "/socket.io", transports: ["websocket", "polling"] });
     socketRef.current = socket;
 
     socket.on("connect", () => setConnected(true));
