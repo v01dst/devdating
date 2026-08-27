@@ -1,0 +1,1 @@
+- [06:16:41] zombie next-server from Termux context squatted :3000 with stale build -> EADDRINUSE + false 'Web ready'. Launcher now has ensure_port_clear() that refuses to start when the port answers but our pid is not the owner. Also fixed missing QueryClientProvider in root layout (surfaced by /discover)(no message)

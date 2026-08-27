@@ -1,0 +1,1 @@
+- [06:16:41] Stage B shipped: swipe-affinity reranking, /me/dashboard, /discover+/profile+/matches+chat UI. 24 pytest pass, ruff clean, next build 10 routes green. Live smoke: all 6 pages HTTP 200(no message)
