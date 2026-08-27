@@ -34,6 +34,22 @@ def test_dashboard_returns_stats_and_paths(client):
     assert any(p["id"] == "first-pr" for p in dashboard["paths"]["paths"])
 
 
+def test_preferences_persist_experience_and_availability(client):
+    response = client.patch(
+        "/api/v1/me/preferences",
+        json={
+            "experience_level": "ADVANCED",
+            "availability": "regular",
+            "tech_stack": ["Go", "Rust"],
+        },
+    )
+    assert response.status_code == 200
+    me = client.get("/api/v1/me").json()
+    assert me["experience_level"] == "ADVANCED"
+    assert me["availability"] == {"level": "regular"}
+    assert set(me["tech_stack"]) == {"go", "rust"}
+
+
 def test_match_conversation_message_flow(client):
     cards = client.get("/api/v1/discovery/cards").json()
     project_id = next(c["project"]["id"] for c in cards if c["project"]["name"] == "alpha")

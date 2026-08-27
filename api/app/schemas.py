@@ -19,11 +19,14 @@ class UserRead(BaseModel):
     experience_level: ExperienceLevel
     tech_stack: list[str]
     domains: list[str]
+    preferences: dict = {}
+    availability: dict = {}
 
 
 class UserPreferencesUpdate(BaseModel):
     tech_stack: list[str] | None = Field(default=None, max_length=25)
     domains: list[str] | None = Field(default=None, max_length=25)
+    experience_level: ExperienceLevel | None = None
     preferred_project_size: str | None = Field(default=None, pattern="^(small|medium|large)$")
     availability: str | None = Field(default=None, pattern="^(casual|part_time|regular|intense)$")
     open_to_non_primary_languages: bool | None = None

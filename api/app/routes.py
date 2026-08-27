@@ -73,12 +73,13 @@ async def update_preferences(
         user.tech_stack = [item.strip().lower() for item in updates["tech_stack"] if item.strip()]
     if "domains" in updates:
         user.domains = [item.strip().lower() for item in updates["domains"] if item.strip()]
+    if updates.get("experience_level") is not None:
+        user.experience_level = updates.pop("experience_level")
     if "availability" in updates and updates["availability"]:
         user.availability = {"level": updates.pop("availability")}
     preferences = user.preferences.copy()
     for key, value in updates.items():
-        if key != "availability":
-            preferences[key] = value
+        preferences[key] = value
     user.preferences = preferences
     db.add(user)
     await db.commit()

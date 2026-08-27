@@ -12,6 +12,7 @@ build/
 .DS_Store
 api/devdating_api.egg-info/
 package-lock.json
+!web/package-lock.json
 .npm-cache/
 .run/
 logs/

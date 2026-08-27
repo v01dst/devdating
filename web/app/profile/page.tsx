@@ -70,7 +70,7 @@ export default async function ProfilePage() {
         initial={{
           tech_stack: (user.tech_stack ?? []).join(", "),
           experience_level: user.experience_level,
-          availability: user.preferences?.availability?.level ?? "",
+          availability: user.availability?.level ?? "",
         }}
       />
 
