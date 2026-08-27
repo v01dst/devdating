@@ -9,7 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import async_session_factory
 from app.issues import estimate_issue_difficulty
-from app.models import Issue, Project, User
+from app.matching import experience_level_from_score, infer_experience_score
+from app.models import ExperienceLevel, Issue, Project, User
 
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN") or os.environ.get("GITHUB_CLIENT_SECRET")
 
@@ -349,13 +350,20 @@ async def profile_from_github(session: AsyncSession):
     user.avatar_url = me.get("avatar_url")
     user.bio = me.get("bio")
     user.tech_stack = top_languages
-    user.experience_level = "INTERMEDIATE"
+    experience_score = infer_experience_score(
+        public_repos=int(me.get("public_repos") or 0),
+        followers=int(me.get("followers") or 0),
+        contributions=0,
+    )
+    user.experience_score = experience_score
+    user.experience_level = ExperienceLevel(experience_level_from_score(experience_score))
     await session.commit()
     return {
         "login": me["login"],
         "repositories": len(repos),
         "languages": dict(languages),
         "tech_stack": top_languages,
+        "experience_level": user.experience_level.value,
     }
 
 
