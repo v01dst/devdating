@@ -11,7 +11,8 @@ from app.auth import require_user
 from app.db import get_db
 from app.github_ingest import sync_all
 from app.issues import estimate_issue_difficulty
-from app.matching import build_reasons, calculate_compatibility
+from app.learning import contribution_readiness, learning_paths
+from app.matching import affinity_boost, build_reasons, calculate_compatibility, language_affinity
 from app.models import (
     Conversation,
     Issue,
@@ -98,6 +99,16 @@ async def discovery_cards(
         .limit(limit * 3)
     )
     projects = result.scalars().all()
+    swipe_lang_result = await db.execute(
+        select(Swipe.direction, Project.languages)
+        .join(Project, Swipe.project_id == Project.id)
+        .where(Swipe.user_id == user.id)
+    )
+    affinity = language_affinity([
+        (direction.value, language)
+        for direction, languages in swipe_lang_result.all()
+        for language in (languages or [])
+    ])
     scored: list[tuple[float, dict, Project]] = []
     experience_value = {
         "NEWCOMER": 0,
@@ -116,15 +127,20 @@ async def discovery_cards(
             project_contributor_count=project.contributor_count,
             project_issue_count=project.issue_count,
         )
-        scored.append((score, breakdown, project))
+        boost, best_language = affinity_boost(project.languages or [], affinity)
+        reasons = build_reasons(breakdown)
+        if boost >= 4 and best_language:
+            reasons.insert(0, f"You keep liking {best_language} projects")
+        final_score = round(min(100.0, score + boost), 2)
+        scored.append((final_score, {**breakdown, "affinity": boost}, reasons, project))
     scored.sort(key=lambda item: item[0], reverse=True)
     return [
         DiscoveryCard(
             project=ProjectRead.model_validate(project),
             compatibility_score=score,
-            reasons=build_reasons(breakdown),
+            reasons=reasons,
         )
-        for score, breakdown, project in scored[:limit]
+        for score, breakdown, reasons, project in scored[:limit]
     ]
 
 
@@ -270,9 +286,13 @@ async def list_matches(
     user: User = Depends(require_user), db: AsyncSession = Depends(get_db)
 ) -> list[Match]:
     result = await db.execute(
-        select(Match).where(Match.user_id == user.id).order_by(Match.created_at.desc()).limit(100)
+        select(Match)
+        .options(joinedload(Match.project), joinedload(Match.conversation))
+        .where(Match.user_id == user.id)
+        .order_by(Match.created_at.desc())
+        .limit(100)
     )
-    return list(result.scalars().all())
+    return list(result.scalars().unique().all())
 
 
 @router.get("/matches/{match_id}", response_model=MatchRead)
@@ -281,7 +301,15 @@ async def read_match(
     user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ) -> Match:
-    return await _get_owned_match(match_id, user, db)
+    result = await db.execute(
+        select(Match)
+        .options(joinedload(Match.project), joinedload(Match.conversation))
+        .where(Match.id == match_id, Match.user_id == user.id)
+    )
+    match = result.scalars().unique().one_or_none()
+    if match is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Match not found")
+    return match
 
 
 @router.get("/matches/{match_id}/issue-recommendation")
@@ -359,6 +387,42 @@ async def recommended_issues(
             "score": round(score, 2), "reasons": reasons or ["Beginner-friendly open issue"],
         })
     return sorted(scored, key=lambda item: item["score"], reverse=True)[:limit]
+
+
+@router.get("/me/dashboard")
+async def my_dashboard(
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    recent = await db.execute(
+        select(Issue)
+        .options(joinedload(Issue.project))
+        .join(Project, Issue.project_id == Project.id)
+        .order_by(Issue.created_at.desc())
+        .limit(300)
+    )
+    issues = list(recent.scalars().unique().all())
+    readiness = contribution_readiness(issues, user.tech_stack or [])
+    paths = learning_paths(user.tech_stack or [], user.experience_level.value)
+    swipe_rows = await db.execute(
+        select(Swipe.direction, func.count())
+        .where(Swipe.user_id == user.id)
+        .group_by(Swipe.direction)
+    )
+    counts = {direction.value: count for direction, count in swipe_rows.all()}
+    swipes_total = sum(counts.values())
+    match_total = await db.scalar(select(func.count(Match.id)).where(Match.user_id == user.id))
+    return {
+        "readiness": readiness,
+        "paths": paths,
+        "stats": {
+            "swipes": swipes_total,
+            "likes": counts.get("LIKE", 0) + counts.get("SUPER_LIKE", 0),
+            "passes": counts.get("PASS", 0),
+            "matches": match_total or 0,
+            "indexed_issues_seen": len(issues),
+        },
+    }
 
 
 @router.get("/meta/languages")
@@ -488,13 +552,22 @@ async def list_messages(
     conversation_id: uuid.UUID,
     before: datetime | None = None,
     limit: int = Query(default=50, ge=1, le=200),
+    order: str = Query(default="desc", pattern="^(asc|desc)$"),
     user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[Message]:
+    owned_result = await db.execute(
+        select(Match.id).join(Conversation, Match.id == Conversation.match_id).where(
+            Conversation.id == conversation_id, Match.user_id == user.id
+        )
+    )
+    if owned_result.scalar_one_or_none() is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Conversation not found")
     query = select(Message).where(Message.conversation_id == conversation_id)
     if before:
         query = query.where(Message.created_at < before)
-    query = query.order_by(Message.created_at.desc()).limit(limit)
+    direction = Message.created_at.asc() if order == "asc" else Message.created_at.desc()
+    query = query.order_by(direction).limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all())
 

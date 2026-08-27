@@ -1,3 +1,4 @@
+from collections import Counter
 from dataclasses import asdict, dataclass
 
 
@@ -67,6 +68,48 @@ def build_reasons(breakdown: dict) -> list[str]:
     if breakdown["demand"] >= 6:
         reasons.append("Open issues exceed current contributor capacity")
     return reasons or ["General discovery candidate based on your preferences"]
+
+
+def language_affinity(swipe_rows: list[tuple[str, str]]) -> dict[str, float]:
+    """Smoothed like-ratio per language from (direction, language) swipe pairs.
+
+    Laplace smoothing keeps unseen combinations neutral (0.5) instead of
+    punishing projects whose languages the user simply has not swiped yet.
+    """
+    likes: Counter[str] = Counter()
+    passes: Counter[str] = Counter()
+    for direction, language in swipe_rows:
+        lang = (language or "").lower()
+        if not lang:
+            continue
+        if direction == "PASS":
+            passes[lang] += 1
+        else:
+            likes[lang] += 1
+    return {
+        lang: (likes[lang] + 1) / (likes[lang] + passes[lang] + 2)
+        for lang in set(likes) | set(passes)
+    }
+
+
+def affinity_boost(
+    project_languages: list[str], affinity: dict[str, float], max_points: float = 10.0
+) -> tuple[float, str | None]:
+    """Points above the deterministic base score for languages the user keeps liking."""
+    ratios = [
+        affinity[lang.lower()]
+        for lang in (project_languages or [])
+        if lang.lower() in affinity
+    ]
+    if not ratios:
+        return 0.0, None
+    best_ratio = max(ratios)
+    points = round(max(0.0, (best_ratio - 0.5) * 2) * max_points, 2)
+    best_language = next(
+        (lang for lang in project_languages if affinity.get(lang.lower()) == best_ratio),
+        None,
+    )
+    return points, best_language
 
 
 def infer_experience_score(public_repos: int, followers: int, contributions: int) -> float:

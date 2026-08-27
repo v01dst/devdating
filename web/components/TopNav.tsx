@@ -1,9 +1,12 @@
 import Link from "next/link";
 
 const links = [
+  { href: "/discover", label: "Discover" },
   { href: "/projects", label: "Projects" },
   { href: "/issues", label: "Issues" },
   { href: "/community", label: "Community" },
+  { href: "/matches", label: "Matches" },
+  { href: "/profile", label: "Profile" },
 ];
 
 export function TopNav({ active }: { active?: string }) {

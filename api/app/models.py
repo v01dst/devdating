@@ -140,6 +140,10 @@ class Match(Base):
     project: Mapped[Project] = relationship(back_populates="matches")
     conversation: Mapped["Conversation | None"] = relationship(back_populates="match", uselist=False)
 
+    @property
+    def conversation_id(self) -> uuid.UUID | None:
+        return self.conversation.id if self.conversation is not None else None
+
 
 class Conversation(Base):
     __tablename__ = "conversations"

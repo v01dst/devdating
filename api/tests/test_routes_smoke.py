@@ -22,8 +22,39 @@ def test_swipe_auto_match_creates_recommendation(client):
     assert body["match_created"] is True
     matches = client.get("/api/v1/matches").json()
     assert matches, "expected an auto-match"
+    assert matches[0]["project"]["name"] == "alpha", "MatchRead should embed the project"
     recommendation = client.get(f"/api/v1/matches/{matches[0]['id']}/issue-recommendation").json()
     assert recommendation["status"] in {"SUGGESTED", "PENDING"}
+
+
+def test_dashboard_returns_stats_and_paths(client):
+    dashboard = client.get("/api/v1/me/dashboard").json()
+    assert {"swipes", "likes", "passes", "matches"} <= set(dashboard["stats"])
+    assert dashboard["readiness"]["advice"]
+    assert any(p["id"] == "first-pr" for p in dashboard["paths"]["paths"])
+
+
+def test_match_conversation_message_flow(client):
+    cards = client.get("/api/v1/discovery/cards").json()
+    project_id = next(c["project"]["id"] for c in cards if c["project"]["name"] == "alpha")
+    client.post("/api/v1/swipes", json={"project_id": project_id, "direction": "LIKE"})
+    match = client.get("/api/v1/matches").json()[0]
+    assert match["conversation_id"], "auto-match should create a conversation"
+    conversation_id = match["conversation_id"]
+
+    sent = client.post(
+        f"/api/v1/conversations/{conversation_id}/messages",
+        json={"body": "I can take this issue"},
+    )
+    assert sent.status_code == 201
+
+    listed = client.get(
+        f"/api/v1/conversations/{conversation_id}/messages?order=asc"
+    ).json()
+    assert [m["body"] for m in listed] == ["I can take this issue"]
+
+    foreign = client.get("/api/v1/conversations/00000000-0000-0000-0000-000000000000/messages")
+    assert foreign.status_code == 404
 
 
 def test_oauth_enforcement_returns_401_without_session(client, monkeypatch, reset_settings):

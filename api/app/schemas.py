@@ -68,6 +68,8 @@ class MatchRead(BaseModel):
     initiated_by: str
     matched_at: datetime | None
     created_at: datetime
+    project: ProjectRead | None = None
+    conversation_id: uuid.UUID | None = None
 
 
 class MessageCreate(BaseModel):

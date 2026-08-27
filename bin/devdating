@@ -48,6 +48,19 @@ HELP
 }
 
 running() { [[ -f "$1" ]] && kill -0 "$(cat "$1")" 2>/dev/null; }
+# Refuse to start when the port already answers but the answering process is not
+# ours (e.g. a stale next-server from an earlier context). Returns 0 when clear.
+ensure_port_clear() {
+  local url="$1" name="$2" pidfile="$3"
+  if curl -fsS --max-time 2 "$url" >/dev/null 2>&1 && ! running "$pidfile"; then
+    local holder
+    holder="$(cat "$pidfile" 2>/dev/null || echo '?')"
+    printf "${red}✖${reset} $name port is held by another process (last known pid $holder).\n"
+    printf "${yellow}▸${reset} Stop it (e.g. \`devdating down\` or kill the process) and retry.\n"
+    return 1
+  fi
+  return 0
+}
 wait_for() {
   local url="$1" name="$2" pidfile="${3:-}" pid=""
   [[ -n "$pidfile" && -f "$pidfile" ]] && pid="$(cat "$pidfile")"
@@ -129,6 +142,7 @@ case "${1:-help}" in
       [[ -d .venv ]] || "$0" install
     . .venv/bin/activate
     export PYTHONPATH="$ROOT/api:${PYTHONPATH:-}"
+      ensure_port_clear http://localhost:8000/healthz API "$PID_DIR/api.pid" || exit 1
       if running "$PID_DIR/api.pid"; then
         printf "${yellow}▸${reset} API already running\n"
       else
@@ -142,6 +156,7 @@ case "${1:-help}" in
         )
         wait_for http://localhost:8000/healthz API "$PID_DIR/api.pid" || exit 1
       fi
+      ensure_port_clear http://localhost:3000 Web "$PID_DIR/web.pid" || exit 1
       if running "$PID_DIR/web.pid"; then
         printf "${yellow}▸${reset} Web already running\n"
       else
