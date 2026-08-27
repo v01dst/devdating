@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { ChatBox } from "@/components/ChatBox";
-import { TopNav } from "@/components/TopNav";
 import { apiFetch } from "@/lib/server-api";
 
 type Params = { params: { id: string } };
@@ -10,7 +9,6 @@ export default async function MatchDetailPage({ params }: Params) {
   if (!match) {
     return (
       <main className="mx-auto w-full max-w-4xl px-6 py-12">
-        <TopNav active="/matches" />
         <div className="glass-card mt-10 rounded-3xl p-8 text-white/65">Match not found.</div>
       </main>
     );
@@ -19,7 +17,6 @@ export default async function MatchDetailPage({ params }: Params) {
 
   return (
     <main className="mx-auto w-full max-w-4xl px-6 py-12">
-      <TopNav active="/matches" />
       <Link href="/matches" className="mt-6 inline-block text-sm text-white/55 hover:text-white">← All matches</Link>
 
       <header className="glass-card mt-4 rounded-3xl p-6">

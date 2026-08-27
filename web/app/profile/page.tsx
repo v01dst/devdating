@@ -1,4 +1,3 @@
-import { TopNav } from "@/components/TopNav";
 import { PreferencesForm } from "@/components/PreferencesForm";
 import { apiFetch } from "@/lib/server-api";
 
@@ -9,7 +8,6 @@ export default async function ProfilePage() {
   if (!user) {
     return (
       <main className="mx-auto w-full max-w-4xl px-6 py-12">
-        <TopNav active="/profile" />
         <div className="glass-card mt-10 rounded-3xl p-8 text-white/65">
           Could not load your profile. Is the API running?
         </div>
@@ -21,7 +19,6 @@ export default async function ProfilePage() {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-6 py-12">
-      <TopNav active="/profile" />
       <header className="mt-8 flex items-center gap-5">
         {user.avatar_url && (
           // eslint-disable-next-line @next/next/no-img-element

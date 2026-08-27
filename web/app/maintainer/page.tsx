@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { TopNav } from "@/components/TopNav";
 import { RespondButtons } from "@/components/RespondButtons";
 import { apiFetch } from "@/lib/server-api";
 
@@ -13,7 +12,6 @@ export default async function MaintainerPage() {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-6 py-12">
-      <TopNav active="/maintainer" />
       <h1 className="mt-8 text-4xl font-semibold tracking-tight sm:text-5xl">Maintainer hub</h1>
       <p className="mt-4 max-w-2xl text-white/65">
         Claim your projects to start approving or declining contributor interest.

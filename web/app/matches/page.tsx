@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { TopNav } from "@/components/TopNav";
 import { apiFetch } from "@/lib/server-api";
 
 export const metadata = { title: "Matches — DevDating" };
@@ -8,7 +7,6 @@ export default async function MatchesPage() {
   const matches = (await apiFetch<any[]>("/api/v1/matches")) ?? [];
   return (
     <main className="mx-auto w-full max-w-5xl px-6 py-12">
-      <TopNav active="/matches" />
       <h1 className="mt-8 text-4xl font-semibold tracking-tight sm:text-5xl">Your matches</h1>
       <p className="mt-4 max-w-2xl text-white/65">Every match comes with a starter issue and a direct line to coordinate.</p>
       {matches.length === 0 ? (

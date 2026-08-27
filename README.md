@@ -11,9 +11,10 @@ The fastest way to find real open-source projects and beginner-friendly issues w
 DevDating scans public GitHub repositories, understands your technical profile, and turns thousands of open issues into a focused, searchable contribution feed. No endless GitHub searching. No random "awesome lists." Just relevant projects and actionable issues.
 
 [![npm version](https://img.shields.io/npm/v/@v01dst/devdating?color=7c5cff&style=for-the-badge)](https://www.npmjs.com/package/@v01dst/devdating)
-[![Install globally](https://img.shields.io/badge/install-npm%20i%20--g%20%40v01dst%2Fdevdating-7c5cff?style=for-the-badge&logo=npm)](https://www.npmjs.com/package/@v01dst/devdating)
+[![npm downloads](https://img.shields.io/npm/dt/@v01dst/devdating?color=7c5cff&style=for-the-badge)](https://www.npmjs.com/package/@v01dst/devdating)
 [![GitHub](https://img.shields.io/badge/source-GitHub-181717?style=for-the-badge&logo=github)](https://github.com/v01dst/devdating)
 [![License](https://img.shields.io/badge/license-MIT-22c55e?style=for-the-badge)](./LICENSE)
+[![Discord](https://img.shields.io/badge/Discord-9p.1-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.com)
 
 </div>
 
@@ -50,7 +51,7 @@ Projects with zero technology overlap score 0 — you never see irrelevant cards
 | **New contributors** | Approachable `good first issue` tasks in your language — no hours lost searching GitHub |
 | **Students & career switchers** | A real public portfolio built on active projects instead of tutorials |
 | **Working developers** | Discovery by language, topic, activity, ecosystem, and maintenance signal |
-| **Open-source maintainers** | Make your repository discoverable through topics, labels, and healthy metadata |
+| **Open-source maintainers** | Claim your projects, review incoming contributor interest, and chat directly after a match |
 | **Hackathon teams** | Instantly locate open tasks in TypeScript, Python, Go, Rust, Java, C++, and more |
 
 ## 🚀 Quick Start
@@ -67,9 +68,13 @@ Then open:
 
 | Page | URL |
 |---|---|
+| Discover (swipe) | http://localhost:3000/discover |
 | Projects | http://localhost:3000/projects |
 | Issues | http://localhost:3000/issues |
 | Community Questions | http://localhost:3000/community |
+| Matches & Chat | http://localhost:3000/matches |
+| Maintainer Hub | http://localhost:3000/maintainer |
+| Profile | http://localhost:3000/profile |
 | API Docs | http://localhost:8000/docs |
 
 > The app uses a portable local SQLite database by default — no PostgreSQL needed. Docker is optional.
@@ -132,11 +137,23 @@ Some repositories don't expose complete language data through search alone — t
 
 | Layer | Technology |
 |---|---|
-| Frontend | Next.js 14, React 18, Tailwind CSS, Framer Motion, TanStack Query |
-| Backend | FastAPI, SQLAlchemy 2 (async), Pydantic v2 |
+| Frontend | Next.js 14, React 18, Tailwind CSS, Framer Motion, TanStack Query, Socket.IO client |
+| Backend | FastAPI, SQLAlchemy 2 (async), Pydantic v2, python-socketio |
 | Database | SQLite (portable local mode) · PostgreSQL supported |
 | Data source | GitHub REST API |
 | Deployment | Docker Compose, Kubernetes manifests in [`infra/k8s`](./infra/k8s) |
+
+## 🖼 Screenshots
+
+<div align="center">
+
+| Projects | Issues |
+|---|---|
+| <img src="docs/images/projects.svg" width="420" alt="Projects screen" /> | <img src="docs/images/issues.svg" width="420" alt="Issues screen" /> |
+
+</div>
+
+Browse public repositories ready for contribution and search real beginner-friendly issues from live GitHub data — swipe to discover, then chat directly with maintainers after a match.
 
 ## 🖥 Local Development
 
@@ -223,11 +240,13 @@ The web app proxies API calls through same-origin `/backend/*`, so cookies just 
 - ✅ Bulk GitHub sync
 - ✅ Community question discovery
 - ✅ Dated operational records ([`records/`](./records))
-- 🔜 Maintainer profiles and project claiming
-- 🔜 Two-way matching between maintainers and contributors
-- 🔜 Direct chat after match
-- 🔜 Smart issue recommendations with difficulty scoring
+- ✅ Swipe-affinity learning (match reranking from your likes/passes)
+- ✅ Maintainer profiles and project claiming
+- ✅ Two-way matching between maintainers and contributors
+- ✅ Real-time chat (Socket.IO) after match
+- ✅ Smart issue recommendations with difficulty scoring
 - 🔜 Contribution tracking from issue to merged pull request
+- 🔜 Notification delivery (mentions, matches, messages)
 
 ## 🤝 Contributing
 
@@ -242,9 +261,11 @@ Good first contributions: UI improvements, accessibility fixes, tests, docs, fil
 
 ## 📬 Contact & Support
 
-Discord: `9p.1`
+Join or message me on Discord: **`9p.1`**
 
-GitHub Issues: https://github.com/v01dst/devdating/issues
+Need help, want to suggest a feature, or found something broken?
+
+- GitHub Issues: https://github.com/v01dst/devdating/issues
 
 ## 📄 License
 
