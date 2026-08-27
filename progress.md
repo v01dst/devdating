@@ -9,14 +9,22 @@ Continuously improve the project: fix UI/responsiveness, header/footer, README i
 - [x] Stage C: Socket.IO chat, maintainer claiming, two-way matching
 - [x] Responsive TopNav (client component, mobile hamburger, auto active state)
 - [x] Footer component (Discord 9p.1, GitHub, npm links)
-- [x] Root layout now hosts TopNav + Footer (single source)
+- [x] Root layout hosts TopNav + Footer (single source)
+- [x] README: screenshots, Discord/npm badges, roadmap updated
+- [x] Fix: experience_level preference now persists (was silently ignored)
+- [x] Fix: UserRead exposes preferences/availability for profile display
+- [x] Fix: web/package-lock.json tracked (CI `npm ci` needs it)
+- [x] Fix: Socket.IO client connects directly to API origin (true WebSocket; proxy dropped upgrades + trailing-slash 308)
+- [x] Improvement: sync-me infers experience level from GitHub stats (public_repos, followers)
+- [x] Home redirect -> /discover
 
-## In Progress
-- [ ] Remove per-page TopNav imports (done via sed, verifying)
-- [ ] Fix discover page deck height under new flex layout
-- [ ] Verify next build compiles
+## Remaining / Candidates
+- [ ] Sync scripts still use create_all (bulk_sync, sync_personal, seed_local) — reconcile with Alembic
+- [ ] OAuth-mode Socket.IO auth relies on cookie (cross-origin direct connection won't send it) — needs token-in-query or shared cookie domain
+- [ ] Notification delivery (mentions, matches, messages)
+- [ ] Contribution tracking (issue -> PR -> merge)
 
-## Remaining
-- [ ] README: screenshots section, Discord badge, roadmap updates (Stage C items)
-- [ ] Full test + build verification
-- [ ] Commit & push, update npm package, record
+## Verification
+- Backend: 26 pytest passing, ruff clean
+- Frontend: next build green (11 routes)
+- Live: all pages HTTP 200, socket.io polling handshake 200

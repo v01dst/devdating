@@ -48,6 +48,9 @@ HELP
 }
 
 running() { [[ -f "$1" ]] && kill -0 "$(cat "$1")" 2>/dev/null; }
+ensure_schema() {
+  (cd api && "$ROOT/.venv/bin/alembic" upgrade head) >/dev/null 2>&1 || true
+}
 # Refuse to start when the port already answers but the answering process is not
 # ours (e.g. a stale next-server from an earlier context). Returns 0 when clear.
 ensure_port_clear() {
@@ -202,30 +205,36 @@ case "${1:-help}" in
   seed)
     . .venv/bin/activate 2>/dev/null || true
     export PYTHONPATH="$ROOT/api${PYTHONPATH:+:$PYTHONPATH}"
+    ensure_schema
     python3 scripts/seed_local.py ;;
   open-setup) echo http://localhost:3100/setup ;;
   sync-github)
     shift || true
     export PYTHONPATH="$ROOT/api${PYTHONPATH:+:$PYTHONPATH}"
     . .venv/bin/activate
+    ensure_schema
     python scripts/sync_live.py "$@" ;;
   sync-me)
     export PYTHONPATH="$ROOT/api${PYTHONPATH:+:$PYTHONPATH}"
     . .venv/bin/activate
+    ensure_schema
     python scripts/sync_personal.py ;;
   sync-questions)
     export PYTHONPATH="$ROOT/api${PYTHONPATH:+:$PYTHONPATH}"
     . .venv/bin/activate
+    ensure_schema
     python scripts/sync_questions.py ;;
   sync-bulk)
     shift || true
     target="${1:-500}"
     export PYTHONPATH="$ROOT/api${PYTHONPATH:+:$PYTHONPATH}"
     . .venv/bin/activate
+    ensure_schema
     python scripts/bulk_sync.py "$target" ;;
   enrich-languages)
     export PYTHONPATH="$ROOT/api${PYTHONPATH:+:$PYTHONPATH}"
     . .venv/bin/activate
+    ensure_schema
     python scripts/enrich_projects.py ;;
   doctor)
     command -v python3 >/dev/null && echo Python OK || exit 1

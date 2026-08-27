@@ -215,8 +215,9 @@ devdating update
 Schema changes ship as Alembic migrations and apply automatically during `devdating install` / `devdating update`. If `install` fails on a database created before migrations existed, baseline it once:
 
 ```bash
-cd ~/.devdating/api
-../.venv/bin/alembic stamp a58003a00ec6   # mark pre-migration tables as the baseline
+cd ~/.devdating
+source devdating.env                     # export DATABASE_URL so alembic targets the right DB
+cd api && ../.venv/bin/alembic stamp a58003a00ec6   # mark pre-migration tables as the baseline
 ../.venv/bin/alembic upgrade head         # apply everything after it
 ../.venv/bin/python ../scripts/backfill_issue_difficulty.py   # score legacy issues (optional)
 ```

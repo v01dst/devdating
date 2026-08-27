@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    database_url: str = "postgresql+asyncpg://devdating:devdating@localhost:5432/devdating"
+    database_url: str = "sqlite+aiosqlite:///./devdating.db"
     redis_url: str = "redis://localhost:6379/0"
     github_client_id: str = ""
     github_client_secret: str = ""
