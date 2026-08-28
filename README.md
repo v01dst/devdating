@@ -37,12 +37,23 @@ Most developers want to contribute to open source, but they get stuck before wri
 | **Experience fit** | Project difficulty vs. your level (30 pts) |
 | **Activity** | Stars, forks, and open-issue momentum (20 pts) |
 | **Demand** | Open issues vs. contributor capacity (10 pts) |
+| **Swipe affinity** | + up to 10 pts learned from your past likes/passes |
 
 Projects with zero technology overlap score 0 — you never see irrelevant cards. Swipe right on what fits, get matched at **65+**, and receive a starter issue recommendation for every match.
 
 <div align="center">
 <img src="docs/images/install-flow.svg" width="720" alt="DevDating install flow" />
 </div>
+
+## ✨ Features
+
+- **🔍 Smart discovery** — swipe through projects ranked by compatibility, with clear reasons ("Strong overlap with your tech stack", "Difficulty aligns with your level").
+- **🧠 Learning from your swipes** — every like/pass tunes language affinity, so recommendations improve the more you use it.
+- **🎯 Difficulty scoring** — every indexed issue gets a difficulty score from its labels, discussion, and size, so you can filter to beginner-friendly work.
+- **💬 Real-time chat** — Socket.IO-powered conversations with the maintainer once you match.
+- **🏷 Maintainer claiming** — maintainers claim their projects and get a hub to review incoming interest.
+- **🤝 Two-way matching** — projects with a claimed maintainer require their approval before a match is confirmed.
+- **📈 Profile dashboard** — contribution readiness, learning paths, and swipe stats in one place.
 
 ## 👥 Who Is This For?
 
@@ -126,7 +137,6 @@ Some repositories don't expose complete language data through search alone — t
 | `devdating seed` | Load demo projects and a developer profile |
 | `devdating setup-ui` | Polished local installer UI on port 3100 |
 | `devdating doctor` | Check required tools |
-| `devdating update` | Pull updates and reinstall dependencies |
 | `devdating uninstall` | Stop services and remove generated files |
 | `devdating sync-me` | Detect your GitHub languages and update your profile |
 | `devdating sync-bulk <count>` | Bulk-index beginner-friendly GitHub issues |
@@ -209,10 +219,13 @@ The database starts empty. Populate it: `devdating sync-bulk 500`. A `GITHUB_TOK
 
 ```bash
 npm install -g @v01dst/devdating@latest
-devdating update
+devdating upd       # pull latest, upgrade packages, apply migrations, restart
 ```
 
-Schema changes ship as Alembic migrations and apply automatically during `devdating install` / `devdating update`. If `install` fails on a database created before migrations existed, baseline it once:
+Schema changes ship as Alembic migrations and apply automatically — `devdating upd` also
+auto-baselines databases that predate migrations, so upgrades work without manual steps.
+
+If you ever need to baseline manually:
 
 ```bash
 cd ~/.devdating

@@ -1,0 +1,1 @@
+- [03:17:01] npm 1.1.0 and 1.1.1 published (latest). Fixed python-socketio missing from dep manifests (fresh installs would crash). Added migrate_db auto-baseline so 'devdating upd' upgrades pre-migration DBs cleanly. README updated with features + swipe-affinity signal.(no message)
