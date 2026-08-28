@@ -19,6 +19,7 @@ dependencies = [
   "aiosqlite==0.20.0",
   "redis==5.0.4",
   "itsdangerous>=2.2,<3",
+  "python-socketio>=5.16,<6",
   "python-multipart==0.0.9",
 ]
 
