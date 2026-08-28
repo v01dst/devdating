@@ -51,6 +51,24 @@ running() { [[ -f "$1" ]] && kill -0 "$(cat "$1")" 2>/dev/null; }
 ensure_schema() {
   (cd api && "$ROOT/.venv/bin/alembic" upgrade head) >/dev/null 2>&1 || true
 }
+# Apply migrations, transparently baselining databases created before Alembic
+# existed (empty alembic_version but tables already present).
+migrate_db() {
+  local baseline="a58003a00ec6" log="$LOG_DIR/migrate.log"
+  mkdir -p "$LOG_DIR"
+  if (cd api && "$ROOT/.venv/bin/alembic" upgrade head) >"$log" 2>&1; then
+    return 0
+  fi
+  if grep -qiE "already exists" "$log"; then
+    printf "${yellow}▸${reset} Pre-migration database detected — stamping baseline and upgrading.\n"
+    if (cd api && "$ROOT/.venv/bin/alembic" stamp "$baseline" && "$ROOT/.venv/bin/alembic" upgrade head) >"$log" 2>&1; then
+      return 0
+    fi
+  fi
+  printf "${red}✖${reset} Database migration failed. Last log lines:\n"
+  tail -n 12 "$log" 2>/dev/null || true
+  return 1
+}
 # Refuse to start when the port already answers but the answering process is not
 # ours (e.g. a stale next-server from an earlier context). Returns 0 when clear.
 ensure_port_clear() {
@@ -127,11 +145,7 @@ case "${1:-help}" in
       command -v docker >/dev/null && docker compose up --build -d || exit 1
     else
       install_native
-      (cd api && "$ROOT/.venv/bin/alembic" upgrade head) || {
-        printf "${yellow}▸${reset} Migration failed on an existing database. If tables predate migrations run:\n"
-        printf "  cd api && ../.venv/bin/alembic stamp a58003a00ec6 && ../.venv/bin/alembic upgrade head\n"
-        exit 1
-      }
+      migrate_db || exit 1
     fi
     ;;
   setup-ui)
@@ -261,11 +275,7 @@ case "${1:-help}" in
     python_deps
     web_deps
     printf "${cyan}▸${reset} Applying database migrations\n"
-    (cd api && "$ROOT/.venv/bin/alembic" upgrade head) || {
-      printf "${yellow}▸${reset} Migration failed. If this DB predates migrations run:\n"
-      printf "  cd api && ../.venv/bin/alembic stamp a58003a00ec6 && ../.venv/bin/alembic upgrade head\n"
-      exit 1
-    }
+    migrate_db || exit 1
     rm -f web/.next/BUILD_ID
     if running "$PID_DIR/api.pid" || running "$PID_DIR/web.pid"; then
       printf "${cyan}▸${reset} Restarting services with updated packages\n"
