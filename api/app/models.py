@@ -238,6 +238,19 @@ class ContributionState(str, enum.Enum):
     MERGED = "MERGED"
 
 
+class SyncRun(Base):
+    __tablename__ = "sync_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    state: Mapped[str] = mapped_column(String(20), default="QUEUED")
+    target: Mapped[int] = mapped_column(Integer, default=200)
+    indexed: Mapped[int] = mapped_column(Integer, default=0)
+    languages: Mapped[list[str]] = mapped_column(JSON, default=list)
+    error: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
 class Notification(Base):
     __tablename__ = "notifications"
 

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PageShell, StaggerItem } from "@/components/PageShell";
 import { apiFetch } from "@/lib/server-api";
 
 export const metadata = { title: "Matches — DevDating" };
@@ -6,6 +7,7 @@ export const metadata = { title: "Matches — DevDating" };
 export default async function MatchesPage() {
   const matches = (await apiFetch<any[]>("/api/v1/matches")) ?? [];
   return (
+    <PageShell>
     <main className="mx-auto w-full max-w-5xl px-6 py-12">
       <h1 className="mt-8 text-4xl font-semibold tracking-tight text-zinc-900 sm:text-5xl">Your matches</h1>
       <p className="mt-4 max-w-2xl text-zinc-600">Every match comes with a starter issue and a direct line to coordinate.</p>
@@ -19,11 +21,11 @@ export default async function MatchesPage() {
         </div>
       ) : (
         <div className="mt-10 grid gap-5 md:grid-cols-2">
-          {matches.map((match: any) => (
+          {matches.map((match: any, index: number) => (
+            <StaggerItem key={match.id} index={index}>
             <Link
-              key={match.id}
               href={`/matches/${match.id}`}
-              className="card group rounded-3xl p-6 transition hover:border-accent/40"
+              className="card group block h-full rounded-3xl p-6 transition hover:border-accent/40"
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -49,9 +51,11 @@ export default async function MatchesPage() {
                 ))}
               </div>
             </Link>
+            </StaggerItem>
           ))}
         </div>
       )}
     </main>
+    </PageShell>
   );
 }

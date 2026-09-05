@@ -93,6 +93,24 @@ class MessageRead(BaseModel):
     created_at: datetime
 
 
+class SyncStart(BaseModel):
+    target: int = Field(default=200, ge=10, le=2000)
+    languages: list[str] | None = None
+
+
+class SyncRunRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    state: str
+    target: int
+    indexed: int
+    languages: list[str]
+    error: str
+    created_at: datetime
+    updated_at: datetime
+
+
 class StatusRead(BaseModel):
     project_count: int
     issue_count: int

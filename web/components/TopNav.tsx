@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { IndexButton } from "@/components/IndexButton";
 
 const allLinks = [
   { href: "/discover", label: "Discover" },
@@ -50,6 +51,7 @@ export function TopNav() {
         </button>
 
         <div className="hidden items-center gap-1 md:flex">
+          <IndexButton compact />
           <Link
             href="/inbox"
             className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
@@ -93,6 +95,9 @@ export function TopNav() {
             <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-semibold text-zinc-500">⌘K</span>
           </button>
           <div className="flex flex-col gap-1">
+            <div className="px-1 py-2">
+              <IndexButton compact />
+            </div>
             {allLinks.map(({ href, label }) => (
               <Link
                 key={href}

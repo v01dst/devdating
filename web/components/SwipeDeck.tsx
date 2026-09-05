@@ -2,10 +2,12 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api, type DiscoveryCard } from "@/lib/api";
+import { MatchModal } from "@/components/MatchModal";
+import { SkeletonCard } from "@/components/PageShell";
 
-type SwipeDirection = "LIKE" | "PASS";
+type SwipeDirection = "LIKE" | "PASS" | "SUPER_LIKE";
 
 function ActivityHeatmap({ score }: { score: number }) {
   return (
@@ -76,6 +78,7 @@ function ProjectCard({ card, onSwipe }: { card: DiscoveryCard; onSwipe: (directi
 export function SwipeDeck() {
   const queryClient = useQueryClient();
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [celebration, setCelebration] = useState<{ card: DiscoveryCard; matchId: string } | null>(null);
   const cardsQuery = useQuery({ queryKey: ["discovery-cards"], queryFn: api.cards });
 
   const swipeMutation = useMutation({
@@ -85,16 +88,69 @@ export function SwipeDeck() {
       queryClient.setQueryData<DiscoveryCard[]>(["discovery-cards"], (old) =>
         old ? old.filter((card) => card.project.id !== variables.projectId) : old,
       );
-      setFeedback(result.match_created ? `Match created! Score ${result.compatibility_score}` : "Preference saved");
+      if (!result.match_created) {
+        setFeedback(variables.direction === "SUPER_LIKE" ? "Super-liked! They'll see you first." : "Preference saved");
+      }
     },
     onError: () => setFeedback("Could not save that swipe"),
+  });
+
+  const undoMutation = useMutation({
+    mutationFn: () => api.undo(),
+    onSuccess: (result) => {
+      if (result.undone) {
+        queryClient.invalidateQueries({ queryKey: ["discovery-cards"] });
+        setFeedback(result.removed_match ? "Swipe undone — pending match withdrawn." : "Swipe undone.");
+      } else {
+        setFeedback("Nothing to undo yet.");
+      }
+    },
+    onError: () => setFeedback("Could not undo that swipe"),
   });
 
   const cards = cardsQuery.data ?? [];
   const currentCard = cards[0];
 
+  const doSwipe = (direction: SwipeDirection) => {
+    const card = currentCard;
+    if (!card || swipeMutation.isPending) return;
+    swipeMutation.mutate(
+      { projectId: card.project.id, direction },
+      {
+        onSuccess: (result) => {
+          if (result.match_created && result.match_id) {
+            setCelebration({ card, matchId: result.match_id });
+          }
+        },
+      },
+    );
+  };
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      const tag = el?.tagName ?? "";
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el?.isContentEditable) return;
+      if (document.querySelector("[data-palette-open='true']")) return;
+      if (e.key === "ArrowLeft") doSwipe("PASS");
+      else if (e.key === "ArrowRight") doSwipe("LIKE");
+      else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        doSwipe("SUPER_LIKE");
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentCard?.project.id, swipeMutation.isPending]);
+
   if (cardsQuery.isLoading) {
-    return <div className="mt-32 text-center text-zinc-500">Loading your matches…</div>;
+    return (
+      <div className="mx-auto mt-10 max-w-md">
+        <SkeletonCard />
+        <p className="mt-4 text-center text-sm text-zinc-500">Finding projects you&apos;ll love…</p>
+      </div>
+    );
   }
 
   if (!currentCard) {
@@ -112,28 +168,54 @@ export function SwipeDeck() {
         <ProjectCard
           key={currentCard.project.id}
           card={currentCard}
-          onSwipe={(direction) => swipeMutation.mutate({ projectId: currentCard.project.id, direction })}
+          onSwipe={(direction) => doSwipe(direction)}
         />
       </AnimatePresence>
-      <div className="absolute inset-x-0 bottom-8 flex justify-center gap-6">
-        <button
+      <div className="absolute inset-x-0 bottom-8 flex items-center justify-center gap-4">
+        <motion.button
           type="button"
-          onClick={() => swipeMutation.mutate({ projectId: currentCard.project.id, direction: "PASS" })}
+          whileTap={{ scale: 0.9 }}
+          onClick={() => undoMutation.mutate()}
+          className="grid size-12 place-items-center rounded-full border border-zinc-200 bg-white text-xl text-zinc-500 transition hover:bg-zinc-100"
+          aria-label="Undo last swipe"
+          title="Undo (take back your last swipe)"
+        >
+          ↩
+        </motion.button>
+        <motion.button
+          type="button"
+          whileTap={{ scale: 0.9 }}
+          onClick={() => doSwipe("PASS")}
           className="grid size-16 place-items-center rounded-full border border-rose-200 bg-rose-50 text-2xl text-rose-600 transition hover:bg-rose-100"
-          aria-label="Pass"
+          aria-label="Pass (←)"
         >
           ✕
-        </button>
-        <button
+        </motion.button>
+        <motion.button
           type="button"
-          onClick={() => swipeMutation.mutate({ projectId: currentCard.project.id, direction: "LIKE" })}
+          whileTap={{ scale: 0.9 }}
+          onClick={() => doSwipe("SUPER_LIKE")}
+          className="grid size-12 place-items-center rounded-full border border-violet-200 bg-violet-100 text-xl text-[#5b3df0] transition hover:bg-violet-200"
+          aria-label="Super like (↑)"
+          title="Super like — they see you first"
+        >
+          ⭐
+        </motion.button>
+        <motion.button
+          type="button"
+          whileTap={{ scale: 0.9 }}
+          onClick={() => doSwipe("LIKE")}
           className="grid size-16 place-items-center rounded-full border border-emerald-200 bg-emerald-50 text-2xl text-emerald-600 transition hover:bg-emerald-100"
-          aria-label="Like"
+          aria-label="Like (→)"
         >
           ♥
-        </button>
+        </motion.button>
       </div>
+      <p className="absolute inset-x-0 -bottom-2 text-center text-xs text-zinc-400">← pass · → like · ↑ super-like · drag works too</p>
       {feedback && <output className="absolute inset-x-0 top-6 text-center text-sm text-zinc-500">{feedback}</output>}
+      {celebration && (
+        <MatchModal card={celebration.card} matchId={celebration.matchId} onClose={() => setCelebration(null)} />
+      )}
     </>
   );
 }

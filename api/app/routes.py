@@ -9,7 +9,7 @@ from sqlalchemy.orm import joinedload
 
 from app.auth import oauth_configured, require_user
 from app.db import get_db
-from app.github_ingest import sync_all
+from app.github_ingest import DEFAULT_EXPANDED_LANGUAGES, bulk_index_issues, enrich_project_languages, sync_all
 from app.issues import estimate_issue_difficulty
 from app.learning import contribution_readiness, learning_paths
 from app.matching import affinity_boost, build_reasons, calculate_compatibility, language_affinity
@@ -26,6 +26,7 @@ from app.models import (
     Project,
     Swipe,
     SwipeDirection,
+    SyncRun,
     User,
 )
 from app.notifications import notify
@@ -42,6 +43,8 @@ from app.schemas import (
     ProjectRead,
     StatusRead,
     SwipeCreate,
+    SyncRunRead,
+    SyncStart,
     UserPreferencesUpdate,
     UserRead,
 )
@@ -233,7 +236,40 @@ async def create_swipe(
         "compatibility_score": score,
         "match_created": match_created,
         "match_status": match.status if match else None,
+        "match_id": str(match.id) if match else None,
     }
+
+
+@router.delete("/swipes/last")
+async def undo_last_swipe(
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Remove the newest swipe; also drop its match if still awaiting the maintainer."""
+    result = await db.execute(
+        select(Swipe)
+        .where(Swipe.user_id == user.id)
+        .order_by(Swipe.created_at.desc())
+        .limit(1)
+    )
+    swipe = result.scalar_one_or_none()
+    if swipe is None:
+        return {"undone": False, "project_id": None, "removed_match": False}
+    project_id = str(swipe.project_id)
+    removed_match = False
+    pending = await db.scalar(
+        select(Match).where(
+            Match.user_id == user.id,
+            Match.project_id == swipe.project_id,
+            Match.status == MatchStatus.PENDING_PROJECT,
+        )
+    )
+    if pending is not None:
+        await db.delete(pending)
+        removed_match = True
+    await db.delete(swipe)
+    await db.commit()
+    return {"undone": True, "project_id": project_id, "removed_match": removed_match}
 
 
 async def create_issue_recommendation_task(match_id: uuid.UUID) -> None:
@@ -450,6 +486,7 @@ async def recommended_issues(
     language: str | None = None,
     search: str | None = None,
     label: str | None = None,
+    sort: str = Query(default="fit", pattern="^(fit|latest|easy)$"),
     user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -494,9 +531,20 @@ async def recommended_issues(
             "project_name": project.name, "repo_url": project.repo_url,
             "languages": project.languages, "labels": issue.labels,
             "difficulty": float(issue.difficulty_score),
+            "opened_at": issue.opened_at.isoformat() if issue.opened_at else None,
             "score": round(score, 2), "reasons": reasons or ["Beginner-friendly open issue"],
+            "_opened": issue.opened_at, "_difficulty": float(issue.difficulty_score),
         })
-    return sorted(scored, key=lambda item: item["score"], reverse=True)[:limit]
+    if sort == "latest":
+        scored.sort(key=lambda item: (item["_opened"] is not None, item["_opened"]), reverse=True)
+    elif sort == "easy":
+        scored.sort(key=lambda item: item["_difficulty"])
+    else:
+        scored.sort(key=lambda item: item["score"], reverse=True)
+    return [
+        {key: value for key, value in item.items() if not key.startswith("_")}
+        for item in scored[:limit]
+    ]
 
 
 @router.get("/me/dashboard")
@@ -551,7 +599,7 @@ async def public_projects(
     language: str | None = None,
     search: str | None = None,
     topic: str | None = None,
-    sort: str = Query(default="activity", pattern="^(activity|stars|issues|name)$"),
+    sort: str = Query(default="activity", pattern="^(activity|stars|issues|name|latest)$"),
     db: AsyncSession = Depends(get_db),
 ):
     query = select(Project).where(Project.is_archived.is_(False), Project.issue_count > 0)
@@ -565,13 +613,14 @@ async def public_projects(
             func.lower(Project.name).contains(term.lower())
             | func.lower(func.coalesce(Project.description, "")).contains(term.lower())
         )
-    order = {
-        "activity": Project.activity_score.desc(),
-        "stars": Project.stars.desc(),
-        "issues": Project.issue_count.desc(),
-        "name": Project.name.asc(),
+    orders = {
+        "activity": [Project.activity_score.desc()],
+        "stars": [Project.stars.desc()],
+        "issues": [Project.issue_count.desc()],
+        "name": [Project.name.asc()],
+        "latest": [Project.synced_at.desc().nullslast(), Project.created_at.desc()],
     }[sort]
-    result = await db.execute(query.order_by(order).limit(limit))
+    result = await db.execute(query.order_by(*orders).limit(limit))
     projects = result.scalars().all()
     return [
         {
@@ -697,6 +746,51 @@ async def platform_stats(db: AsyncSession = Depends(get_db)) -> dict:
 @router.post("/admin/sync-github")
 async def admin_sync_github(languages: list[str] | None = None):
     return await sync_all(languages or ["Python", "TypeScript"])
+
+
+async def run_index_job(run_id: uuid.UUID, target: int, languages: list[str]) -> None:
+    from app.db import SessionLocal
+
+    async with SessionLocal() as db:
+        run = await db.scalar(select(SyncRun).where(SyncRun.id == run_id))
+        if run is None:
+            return
+        run.state = "RUNNING"
+        await db.commit()
+        try:
+            result = await bulk_index_issues(db, target_issues=target, languages=languages)
+            await enrich_project_languages(db)
+            run.state = "DONE"
+            run.indexed = int(result.get("issues_processed", 0))
+        except Exception as exc:
+            run.state = "FAILED"
+            run.error = str(exc)[:500]
+        await db.commit()
+
+
+@router.post("/admin/sync", response_model=SyncRunRead, status_code=status.HTTP_202_ACCEPTED)
+async def start_index_sync(
+    payload: SyncStart,
+    background_tasks: BackgroundTasks,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    languages = payload.languages or user.tech_stack or DEFAULT_EXPANDED_LANGUAGES
+    run = SyncRun(state="QUEUED", target=payload.target, languages=languages)
+    db.add(run)
+    await db.commit()
+    await db.refresh(run)
+    background_tasks.add_task(run_index_job, run.id, payload.target, languages)
+    return run
+
+
+@router.get("/admin/sync/runs/latest", response_model=SyncRunRead | None)
+async def latest_sync_run(
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(SyncRun).order_by(SyncRun.created_at.desc()).limit(1))
+    return result.scalar_one_or_none()
 
 
 @router.get("/status", response_model=StatusRead)
