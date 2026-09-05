@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Providers } from "@/components/Providers";
 import { TopNav } from "@/components/TopNav";
 import { Footer } from "@/components/Footer";
+import { Sidebar } from "@/components/Sidebar";
+import { AuthBanner } from "@/components/AuthBanner";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -22,7 +24,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="flex min-h-dvh flex-col bg-surface text-white antialiased">
         <Providers>
           <TopNav />
-          <div className="flex-1">{children}</div>
+          <AuthBanner />
+          <div className="mx-auto flex w-full max-w-7xl flex-1 gap-4 px-4 sm:px-6">
+            <Sidebar />
+            <div className="min-w-0 flex-1">{children}</div>
+          </div>
           <Footer />
         </Providers>
       </body>
