@@ -647,6 +647,7 @@ async def public_projects(
             "open_issues": project.issue_count,
             "activity_score": float(project.activity_score),
             "license": project.license_spdx,
+            "synced_at": project.synced_at.isoformat() if project.synced_at else None,
         }
         for project in projects
     ]

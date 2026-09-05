@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PageShell, StaggerItem } from "@/components/PageShell";
+import { timeAgo } from "@/lib/timeAgo";
 import { apiFetch } from "@/lib/server-api";
 
 export const metadata = { title: "Matches — DevDating" };
@@ -43,6 +44,9 @@ export default async function MatchesPage() {
                 </span>
                 {match.conversation_id && (
                   <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs text-zinc-500">chat open</span>
+                )}
+                {timeAgo(match.matched_at ?? match.created_at) && (
+                  <span className="text-xs text-zinc-400">matched {timeAgo(match.matched_at ?? match.created_at)}</span>
                 )}
               </div>
               <div className="mt-4 flex flex-wrap gap-2">

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { PageShell, SkeletonCard, StaggerItem } from "@/components/PageShell";
 import { api, type DiscoveryCard } from "@/lib/api";
+import { timeAgo } from "@/lib/timeAgo";
 
 export default function Home() {
   const { data, isLoading } = useQuery({ queryKey: ["picks"], queryFn: () => api.cards() });
@@ -24,7 +25,7 @@ export default function Home() {
           <div className="card p-4">
             <div className="font-bold text-zinc-900">{Math.round(c.compatibility_score)}% · {c.project.owner_login}/{c.project.name}</div>
             <div className="text-sm text-zinc-600">{(c.project.description ?? "")} · {(c.project.languages ?? []).join(", ")} · ★{c.project.stars}</div>
-            <div className="text-xs text-zinc-500">{c.reasons.join(" · ")}</div>
+            <div className="text-xs text-zinc-500">{c.reasons.join(" · ")}{timeAgo(c.project.synced_at) ? ` · indexed ${timeAgo(c.project.synced_at)}` : ""}</div>
           </div>
           </StaggerItem>
         ))}

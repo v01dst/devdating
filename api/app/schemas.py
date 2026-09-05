@@ -47,6 +47,7 @@ class ProjectRead(BaseModel):
     issue_count: int
     activity_score: float
     difficulty_level: float
+    synced_at: datetime | None = None
 
 
 class DiscoveryCard(BaseModel):

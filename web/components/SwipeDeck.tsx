@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { api, type DiscoveryCard } from "@/lib/api";
+import { timeAgo } from "@/lib/timeAgo";
 import { MatchModal } from "@/components/MatchModal";
 import { SkeletonCard } from "@/components/PageShell";
 
@@ -57,6 +58,9 @@ function ProjectCard({ card, onSwipe }: { card: DiscoveryCard; onSwipe: (directi
         </div>
       </div>
       <p className="mt-4 line-clamp-4 min-h-20 text-sm text-zinc-600">{project.description ?? "No description provided."}</p>
+      {timeAgo(project.synced_at) && (
+        <p className="mt-2 text-xs text-zinc-400">indexed {timeAgo(project.synced_at)}</p>
+      )}
       <div className="mt-5 flex flex-wrap gap-2">
         {project.languages.slice(0, 4).map((language) => (
           <span key={language} className="chip">{language}</span>

@@ -36,6 +36,7 @@ export type DiscoveryCard = {
     issue_count: number;
     activity_score: number;
     difficulty_level: number;
+    synced_at?: string | null;
   };
   compatibility_score: number;
   reasons: string[];

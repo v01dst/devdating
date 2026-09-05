@@ -1,4 +1,5 @@
 import { PageShell, StaggerItem } from "@/components/PageShell";
+import { timeAgo } from "@/lib/timeAgo";
 import { apiFetch } from "@/lib/server-api";
 
 type SearchParams = { language?: string; search?: string; label?: string; sort?: string };
@@ -49,7 +50,7 @@ export default async function IssuesPage({ searchParams }: { searchParams: Searc
           <a href={issue.url} target="_blank" rel="noreferrer" className="card group block h-full rounded-3xl p-6 transition hover:border-accent/40">
             <div className="flex items-center justify-between text-xs text-zinc-500">
               <span>{issue.project_name}</span>
-              <span>{issue.opened_at ? `opened ${new Date(issue.opened_at).toLocaleDateString()}` : ""} · <span className="text-emerald-600">{Math.round(issue.score)} fit</span></span>
+              <span>{timeAgo(issue.opened_at) ? `opened ${timeAgo(issue.opened_at)}` : ""} · <span className="text-emerald-600">{Math.round(issue.score)} fit</span></span>
             </div>
             <h2 className="mt-3 line-clamp-3 font-semibold leading-snug text-zinc-900 group-hover:text-[#5b3df0]">{issue.title}</h2>
             <div className="mt-3 flex items-center gap-2">

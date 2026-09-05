@@ -1,6 +1,7 @@
 import { ClaimButton } from "@/components/ClaimButton";
 import { IndexButton } from "@/components/IndexButton";
 import { PageShell, StaggerItem } from "@/components/PageShell";
+import { timeAgo } from "@/lib/timeAgo";
 import { apiFetch } from "@/lib/server-api";
 
 type SearchParams = { language?: string; search?: string; topic?: string; sort?: string };
@@ -47,6 +48,9 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Sea
           <div className="card group h-full rounded-3xl p-6 transition hover:border-accent/40">
             <div className="flex items-start justify-between gap-4"><div><p className="text-xs uppercase tracking-wide text-[#5b3df0]">{project.owner_login}</p><a href={project.repo_url} target="_blank" rel="noreferrer"><h2 className="mt-1 line-clamp-1 text-lg font-semibold text-zinc-900 group-hover:text-[#5b3df0]">{project.name}</h2></a></div><span className="text-sm text-amber-500">★ {project.stars}</span></div>
             <p className="mt-3 line-clamp-3 min-h-16 text-sm text-zinc-600">{project.description || "No description provided."}</p>
+            {timeAgo(project.synced_at) && (
+              <p className="mt-1 text-xs text-zinc-400">indexed {timeAgo(project.synced_at)}</p>
+            )}
             <div className="mt-5 flex flex-wrap gap-2">{project.languages.slice(0, 3).map((lang: string) => <span key={lang} className="chip">{lang}</span>)}</div>
             <div className="mt-5 grid grid-cols-3 gap-2 text-center text-xs text-zinc-500"><div><b className="block text-zinc-900">{project.activity_score.toFixed(0)}</b>vibe</div><div><b className="block text-emerald-600">{project.open_issues}</b>open issues</div><div><b className="block text-zinc-900">{project.forks}</b>forks</div></div>
             <div className="mt-4"><ClaimButton projectId={project.id} /></div>
