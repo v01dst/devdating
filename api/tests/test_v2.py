@@ -34,3 +34,16 @@ def test_contributions_claim_flow(client):
     assert u.json()["state"] == "PR_OPEN"
     lst = client.get("/api/v1/contributions").json()
     assert any(x["id"] == cid for x in lst)
+
+
+def test_message_send_no_self_notify(client):
+    cards = client.get("/api/v1/discovery/cards").json()
+    pid = next(c["project"]["id"] for c in cards if c["project"]["name"] == "alpha")
+    client.post("/api/v1/swipes", json={"project_id": pid, "direction": "LIKE"})
+    match = client.get("/api/v1/matches").json()[0]
+    cid = match["conversation_id"]
+    assert cid
+    sent = client.post(f"/api/v1/conversations/{cid}/messages", json={"body": "hello no self notify"})
+    assert sent.status_code == 201
+    notifs = client.get("/api/v1/notifications").json()
+    assert not any(n["type"] == "MESSAGE" for n in notifs)

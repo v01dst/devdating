@@ -14,7 +14,7 @@ export default function Home() {
         {picks.map((c) => (
           <div key={c.project.id} className="rounded-2xl border border-black/10 p-4 dark:border-white/10">
             <div className="font-bold">{Math.round(c.compatibility_score)}% · {c.project.owner_login}/{c.project.name}</div>
-            <div className="text-sm opacity-70">{c.project.description} · {c.project.languages.join(", ")} · ★{c.project.stars}</div>
+            <div className="text-sm opacity-70">{(c.project.description ?? "")} · {(c.project.languages ?? []).join(", ")} · ★{c.project.stars}</div>
             <div className="text-xs opacity-60">{c.reasons.join(" · ")}</div>
           </div>
         ))}

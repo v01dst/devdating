@@ -2,7 +2,7 @@ import uuid
 from collections import Counter
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -652,7 +652,10 @@ async def create_message(
     conversation.last_message_at = now
     db.add(message)
     db.add(conversation)
-    await notify(db, conversation.match.user_id, "MESSAGE", "New message", payload.body.strip()[:200], "/matches")
+    project = await db.get(Project, conversation.match.project_id)
+    maintainer_id = project.maintainer_user_id if project is not None else None
+    if maintainer_id is not None and maintainer_id != user.id:
+        await notify(db, maintainer_id, "MESSAGE", "New message", payload.body.strip()[:200], "/matches")
     await db.commit()
     await db.refresh(message)
     return message
@@ -756,8 +759,33 @@ async def list_contributions(user: User = Depends(require_user), db: AsyncSessio
 
 @router.post("/contributions/claim", response_model=ContributionRead, status_code=201)
 async def claim_contribution(
-    payload: ContributionClaim, user: User = Depends(require_user), db: AsyncSession = Depends(get_db)
+    payload: ContributionClaim,
+    response: Response,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
 ):
+    if payload.issue_id is not None:
+        issue = await db.get(Issue, payload.issue_id)
+        if issue is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Issue not found")
+    existing = await db.scalar(
+        select(Contribution).where(
+            Contribution.user_id == user.id,
+            Contribution.repo == payload.repo,
+            Contribution.issue_number == payload.issue_number,
+            Contribution.state != ContributionState.MERGED,
+        )
+    )
+    if existing is not None:
+        response.status_code = status.HTTP_200_OK
+        return ContributionRead(
+            id=existing.id,
+            repo=existing.repo,
+            issue_number=existing.issue_number,
+            state=existing.state.value if hasattr(existing.state, "value") else str(existing.state),
+            pr_url=existing.pr_url,
+            created_at=existing.created_at,
+        )
     c = Contribution(
         user_id=user.id,
         repo=payload.repo,
@@ -766,8 +794,6 @@ async def claim_contribution(
         state=ContributionState.CLAIMED,
     )
     db.add(c)
-    await db.commit()
-    await db.refresh(c)
     await notify(db, user.id, "SYSTEM", f"Claimed {payload.repo}#{payload.issue_number}", "", "/contributions")
     await db.commit()
     await db.refresh(c)

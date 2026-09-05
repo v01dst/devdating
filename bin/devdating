@@ -176,7 +176,7 @@ case "${1:-help}" in
       fi
       migrate_db || exit 1
       export PYTHONPATH="$ROOT/api:${PYTHONPATH:-}"
-      .venv/bin/python "$ROOT/scripts/ensure_bootstrapped.py" >>"$ROOT/logs/api.log" 2>&1 || true
+      "$ROOT/.venv/bin/python" "$ROOT/scripts/ensure_bootstrapped.py" >>"$ROOT/logs/api.log" 2>&1 || true
       ensure_port_clear http://localhost:3000 Web "$PID_DIR/web.pid" || exit 1
       if running "$PID_DIR/web.pid"; then
         printf "${yellow}▸${reset} Web already running\n"
