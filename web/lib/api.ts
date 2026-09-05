@@ -74,6 +74,7 @@ Object.assign(api, {
   contributions: () => request<Contribution[]>("/api/v1/contributions"),
   claim: (repo: string, issue_number: number) => request<Contribution>("/api/v1/contributions/claim", { method: "POST", body: JSON.stringify({ repo, issue_number }) }),
   onboarding: (prefs: Record<string, unknown>) => request<unknown>("/api/v1/me/preferences", { method: "PATCH", body: JSON.stringify(prefs) }),
-  syncStart: (target: number) => request<SyncRun>("/api/v1/admin/sync", { method: "POST", body: JSON.stringify({ target }) }),
+  syncStart: (body: { target: number; label_groups?: string[]; difficulty?: string | null }) =>
+    request<SyncRun>("/api/v1/admin/sync", { method: "POST", body: JSON.stringify(body) }),
   syncLatest: () => request<SyncRun | null>("/api/v1/admin/sync/runs/latest"),
 });

@@ -98,10 +98,10 @@ def test_undo_swipe_removes_pending_match(client):
 
 
 def test_index_sync_lifecycle(client, monkeypatch):
-    async def fake_bulk(session, target_issues=500, languages=None):
+    async def fake_bulk(session, **kwargs):
         return {"issues_processed": 7, "projects_created": 2}
 
-    async def fake_enrich(session, batch_size=300):
+    async def fake_enrich(session, **kwargs):
         return {"projects_updated": 1}
 
     monkeypatch.setattr("app.routes.bulk_index_issues", fake_bulk)
@@ -120,3 +120,59 @@ def test_index_sync_lifecycle(client, monkeypatch):
     assert latest["state"] == "DONE"
     assert latest["indexed"] == 7
     assert latest["id"] == created["id"]
+
+
+def test_resolve_label_queries():
+    from app.github_ingest import ISSUE_LABEL_QUERIES, resolve_label_queries
+
+    assert resolve_label_queries(None) == ISSUE_LABEL_QUERIES
+    assert resolve_label_queries([]) == ISSUE_LABEL_QUERIES
+    bug = resolve_label_queries(["bug"])
+    assert bug == ['label:bug', 'label:"type: bug"']
+    both = resolve_label_queries(["good-first", "bug"])
+    assert 'label:"good first issue"' in both and "label:bug" in both
+    try:
+        resolve_label_queries(["nope"])
+    except KeyError:
+        pass
+    else:
+        raise AssertionError("expected KeyError for unknown group")
+
+
+def test_resolve_difficulty_range():
+    from app.github_ingest import difficulty_kept, resolve_difficulty_range
+
+    assert resolve_difficulty_range(None) == (0, 100)
+    assert resolve_difficulty_range("beginner") == (0, 35)
+    assert resolve_difficulty_range("mid") == (35, 65)
+    assert resolve_difficulty_range("hard") == (65, 100)
+    assert difficulty_kept(35, 0, 35) is True
+    assert difficulty_kept(35.1, 0, 35) is False
+    assert difficulty_kept(100, 65, 100) is True
+
+
+def test_sync_rejects_unknown_label_group(client):
+    response = client.post("/api/v1/admin/sync", json={"target": 50, "label_groups": ["nope"]})
+    assert response.status_code == 422
+
+
+def test_sync_stores_filters_and_passes_them_through(client, monkeypatch):
+    seen = {}
+
+    async def fake_bulk(session, **kwargs):
+        seen.update(kwargs)
+        return {"issues_processed": 3, "projects_created": 1}
+
+    async def fake_enrich(session, **kwargs):
+        return {"projects_updated": 0}
+
+    monkeypatch.setattr("app.routes.bulk_index_issues", fake_bulk)
+    monkeypatch.setattr("app.routes.enrich_project_languages", fake_enrich)
+    created = client.post(
+        "/api/v1/admin/sync",
+        json={"target": 50, "label_groups": ["bug"], "difficulty": "beginner"},
+    ).json()
+    assert created["label_groups"] == ["bug"]
+    assert created["difficulty"] == "beginner"
+    assert seen["label_queries"] == ['label:bug', 'label:"type: bug"']
+    assert (seen["min_difficulty"], seen["max_difficulty"]) == (0, 35)

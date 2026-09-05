@@ -2,28 +2,55 @@
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, type SyncRun } from "@/lib/api";
+
+const LABEL_GROUPS = [
+  { id: "good-first", label: "Good first issues" },
+  { id: "help-wanted", label: "Help wanted" },
+  { id: "beginner", label: "Beginner" },
+  { id: "bug", label: "Bugs" },
+];
+
+const DIFFICULTIES = [
+  { id: "", label: "Any difficulty" },
+  { id: "beginner", label: "Beginner" },
+  { id: "mid", label: "Mid" },
+  { id: "hard", label: "Hard" },
+];
 
 export function IndexButton({ compact = false }: { compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const [target, setTarget] = useState(500);
+  const [groups, setGroups] = useState<string[]>(["good-first", "help-wanted"]);
+  const [difficulty, setDifficulty] = useState("");
   const [runId, setRunId] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const latest = useQuery({
     queryKey: ["sync-run", runId],
-    queryFn: () => (api as unknown as { syncLatest: () => Promise<import("@/lib/api").SyncRun | null> }).syncLatest(),
+    queryFn: () => (api as unknown as { syncLatest: () => Promise<SyncRun | null> }).syncLatest(),
     enabled: runId !== null,
     refetchInterval: (query) => (query.state.data?.state === "DONE" || query.state.data?.state === "FAILED" ? false : 2000),
   });
   const run = latest.data && latest.data.id === runId ? latest.data : null;
 
+  const toggleGroup = (id: string) =>
+    setGroups((prev) => (prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id]));
+
   const start = async () => {
+    if (groups.length === 0) {
+      setStartError("Pick at least one label filter.");
+      return;
+    }
     setStarting(true);
     setStartError(null);
     try {
-      const created = await (api as unknown as { syncStart: (t: number) => Promise<import("@/lib/api").SyncRun> }).syncStart(target);
+      const created = await (
+        api as unknown as {
+          syncStart: (body: { target: number; label_groups: string[]; difficulty: string | null }) => Promise<SyncRun>;
+        }
+      ).syncStart({ target, label_groups: groups, difficulty: difficulty || null });
       setRunId(created.id);
     } catch {
       setStartError("Could not start indexing. Is the API running?");
@@ -40,6 +67,8 @@ export function IndexButton({ compact = false }: { compact?: boolean }) {
     queryClient.invalidateQueries({ queryKey: ["discovery-cards"] });
   };
 
+  const pct = run ? Math.min(100, Math.round((run.indexed / Math.max(run.target, 1)) * 100)) : 0;
+
   return (
     <>
       <button
@@ -51,11 +80,37 @@ export function IndexButton({ compact = false }: { compact?: boolean }) {
       </button>
       {open && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-zinc-950/50 p-4" onClick={close}>
-          <div className="w-full max-w-sm rounded-3xl border border-zinc-200 bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-3xl border border-zinc-200 bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-xl font-bold text-zinc-900">Index projects from GitHub</h2>
             <p className="mt-1 text-sm text-zinc-500">Pulls beginner-friendly issues into your feed. Runs in the background.</p>
             {!run ? (
               <>
+                <p className="mt-4 text-sm font-semibold text-zinc-700">Labels</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {LABEL_GROUPS.map((g) => (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => toggleGroup(g.id)}
+                      className={groups.includes(g.id) ? "rounded-full bg-accent px-4 py-2 text-sm font-bold text-white" : "rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-600 hover:bg-zinc-100"}
+                    >
+                      {g.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-4 text-sm font-semibold text-zinc-700">Difficulty</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {DIFFICULTIES.map((d) => (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => setDifficulty(d.id)}
+                      className={difficulty === d.id ? "rounded-full bg-zinc-900 px-4 py-2 text-sm font-bold text-white" : "rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-600 hover:bg-zinc-100"}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
                 <label className="mt-4 block text-sm font-semibold text-zinc-700">
                   Issues to index
                   <select value={target} onChange={(e) => setTarget(Number(e.target.value))} className="input mt-2">
@@ -68,6 +123,7 @@ export function IndexButton({ compact = false }: { compact?: boolean }) {
                 <button type="button" onClick={start} disabled={starting} className="btn-primary mt-4 w-full px-4 py-3 text-sm disabled:opacity-50">
                   {starting ? "Starting…" : "Start indexing"}
                 </button>
+                <p className="mt-3 text-xs text-zinc-400">Tip: set a GITHUB_TOKEN for ~10× faster indexing — GitHub throttles anonymous requests hard.</p>
               </>
             ) : (
               <>
@@ -80,9 +136,9 @@ export function IndexButton({ compact = false }: { compact?: boolean }) {
                   </div>
                   <div className="mt-2 h-2 overflow-hidden rounded-full bg-zinc-100">
                     {run.state === "DONE" || run.state === "FAILED" ? (
-                      <div className={`h-full rounded-full ${run.state === "DONE" ? "bg-emerald-500" : "bg-rose-500"}`} style={{ width: "100%" }} />
+                      <div className={`h-full rounded-full transition-all ${run.state === "DONE" ? "bg-emerald-500" : "bg-rose-500"}`} style={{ width: "100%" }} />
                     ) : (
-                      <div className="skeleton h-full w-full rounded-full" />
+                      <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${Math.max(pct, 4)}%` }} />
                     )}
                   </div>
                 </div>

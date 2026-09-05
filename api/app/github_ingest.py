@@ -83,6 +83,45 @@ ISSUE_LABEL_QUERIES = [
     'label:beginner',
 ]
 
+#: UI filter groups for indexing. Keys are the only values the API accepts;
+#: values are the GitHub search fragments (server-side map, never client input).
+LABEL_GROUP_QUERIES: dict[str, list[str]] = {
+    "good-first": ['label:"good first issue"', 'label:"good-first-issue"'],
+    "help-wanted": ['label:"help wanted"'],
+    "beginner": ["label:beginner"],
+    "bug": ['label:bug', 'label:"type: bug"'],
+}
+
+#: Difficulty bands over the 0-100 estimated score. Beginner matches the
+#: <=35 threshold used across the UI.
+DIFFICULTY_RANGES: dict[str, tuple[float, float]] = {
+    "beginner": (0, 35),
+    "mid": (35, 65),
+    "hard": (65, 100),
+}
+
+
+def resolve_label_queries(groups: list[str] | None) -> list[str]:
+    """Map UI label-group keys to GitHub search fragments. Unknown keys raise KeyError."""
+    if not groups:
+        return list(ISSUE_LABEL_QUERIES)
+    queries: list[str] = []
+    for group in groups:
+        queries.extend(LABEL_GROUP_QUERIES[group])
+    seen = set()
+    return [query for query in queries if not (query in seen or seen.add(query))]  # type: ignore[func-returns-value]
+
+
+def resolve_difficulty_range(name: str | None) -> tuple[float, float]:
+    """Map a UI difficulty name to an inclusive (lo, hi) score band."""
+    if not name:
+        return (0, 100)
+    return DIFFICULTY_RANGES[name]
+
+
+def difficulty_kept(score: float, low: float, high: float) -> bool:
+    return low <= score <= high
+
 
 def apply_issue_fields(issue: Issue, item: dict, label_filter: set[str] | None = None) -> None:
     """Upsert issue attributes from a GitHub API payload and persist the
@@ -165,7 +204,15 @@ def client_for_projects():
     return httpx.AsyncClient(base_url="https://api.github.com", headers=github_headers(), timeout=30)
 
 
-async def bulk_index_issues(session: AsyncSession, target_issues: int = 500, languages: list[str] | None = None):
+async def bulk_index_issues(
+    session: AsyncSession,
+    target_issues: int = 500,
+    languages: list[str] | None = None,
+    label_queries: list[str] | None = None,
+    min_difficulty: float = 0,
+    max_difficulty: float = 100,
+    on_progress=None,
+):
     token = cli_github_token()
     headers = {"Accept": "application/vnd.github+json", "User-Agent": "DevDating"}
     if token:
@@ -174,7 +221,7 @@ async def bulk_index_issues(session: AsyncSession, target_issues: int = 500, lan
     projects_created = 0
     seen_pairs = set()
     language_queries = []
-    for label_query in ISSUE_LABEL_QUERIES:
+    for label_query in (label_queries or ISSUE_LABEL_QUERIES):
         for language in (languages or [None]):
             language_queries.append(
                 f"{label_query} language:{language} state:open" if language else f"{label_query} state:open"
@@ -243,12 +290,20 @@ async def bulk_index_issues(session: AsyncSession, target_issues: int = 500, lan
                         select(Issue).where(Issue.project_id == project.id, Issue.issue_number == item["number"])
                     )
                     issue = existing_issue.scalar_one_or_none()
-                    if issue is None:
+                    is_new = issue is None
+                    if is_new:
                         issue = Issue(project_id=project.id, issue_number=item["number"])
                         session.add(issue)
                     apply_issue_fields(issue, item)
+                    if not difficulty_kept(float(issue.difficulty_score), min_difficulty, max_difficulty):
+                        # Out-of-band for this run: drop new rows before flush,
+                        # detach existing ones so their stored values are untouched.
+                        session.expunge(issue)
+                        continue
                     processed += 1
                 await session.commit()
+                if on_progress is not None:
+                    await on_progress(processed)
                 if processed >= target_issues:
                     break
             if processed >= target_issues:

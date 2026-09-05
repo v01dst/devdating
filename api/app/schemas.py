@@ -96,6 +96,9 @@ class MessageRead(BaseModel):
 class SyncStart(BaseModel):
     target: int = Field(default=200, ge=10, le=2000)
     languages: list[str] | None = None
+    label_groups: list[str] | None = None
+    difficulty: str | None = Field(default=None, pattern="^(beginner|mid|hard)$")
+    enrich_batch: int = Field(default=50, ge=0, le=300)
 
 
 class SyncRunRead(BaseModel):
@@ -106,6 +109,8 @@ class SyncRunRead(BaseModel):
     target: int
     indexed: int
     languages: list[str]
+    label_groups: list[str] = []
+    difficulty: str = ""
     error: str
     created_at: datetime
     updated_at: datetime

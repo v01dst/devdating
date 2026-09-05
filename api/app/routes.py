@@ -9,7 +9,15 @@ from sqlalchemy.orm import joinedload
 
 from app.auth import oauth_configured, require_user
 from app.db import get_db
-from app.github_ingest import DEFAULT_EXPANDED_LANGUAGES, bulk_index_issues, enrich_project_languages, sync_all
+from app.github_ingest import (
+    DEFAULT_EXPANDED_LANGUAGES,
+    LABEL_GROUP_QUERIES,
+    bulk_index_issues,
+    enrich_project_languages,
+    resolve_difficulty_range,
+    resolve_label_queries,
+    sync_all,
+)
 from app.issues import estimate_issue_difficulty
 from app.learning import contribution_readiness, learning_paths
 from app.matching import affinity_boost, build_reasons, calculate_compatibility, language_affinity
@@ -748,8 +756,23 @@ async def admin_sync_github(languages: list[str] | None = None):
     return await sync_all(languages or ["Python", "TypeScript"])
 
 
-async def run_index_job(run_id: uuid.UUID, target: int, languages: list[str]) -> None:
+async def run_index_job(
+    run_id: uuid.UUID,
+    target: int,
+    languages: list[str],
+    label_queries: list[str],
+    low: float,
+    high: float,
+    enrich_batch: int,
+) -> None:
     from app.db import SessionLocal
+
+    async def report(processed: int) -> None:
+        async with SessionLocal() as progress_db:
+            progress_run = await progress_db.scalar(select(SyncRun).where(SyncRun.id == run_id))
+            if progress_run is not None:
+                progress_run.indexed = processed
+                await progress_db.commit()
 
     async with SessionLocal() as db:
         run = await db.scalar(select(SyncRun).where(SyncRun.id == run_id))
@@ -758,8 +781,17 @@ async def run_index_job(run_id: uuid.UUID, target: int, languages: list[str]) ->
         run.state = "RUNNING"
         await db.commit()
         try:
-            result = await bulk_index_issues(db, target_issues=target, languages=languages)
-            await enrich_project_languages(db)
+            result = await bulk_index_issues(
+                db,
+                target_issues=target,
+                languages=languages,
+                label_queries=label_queries,
+                min_difficulty=low,
+                max_difficulty=high,
+                on_progress=report,
+            )
+            if enrich_batch > 0:
+                await enrich_project_languages(db, batch_size=enrich_batch)
             run.state = "DONE"
             run.indexed = int(result.get("issues_processed", 0))
         except Exception as exc:
@@ -776,11 +808,28 @@ async def start_index_sync(
     db: AsyncSession = Depends(get_db),
 ):
     languages = payload.languages or user.tech_stack or DEFAULT_EXPANDED_LANGUAGES
-    run = SyncRun(state="QUEUED", target=payload.target, languages=languages)
+    groups = payload.label_groups or ["good-first", "help-wanted"]
+    unknown = [group for group in groups if group not in LABEL_GROUP_QUERIES]
+    if unknown:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Unknown label groups: {', '.join(unknown)}",
+        )
+    label_queries = resolve_label_queries(groups)
+    low, high = resolve_difficulty_range(payload.difficulty)
+    run = SyncRun(
+        state="QUEUED",
+        target=payload.target,
+        languages=languages,
+        label_groups=groups,
+        difficulty=payload.difficulty or "",
+    )
     db.add(run)
     await db.commit()
     await db.refresh(run)
-    background_tasks.add_task(run_index_job, run.id, payload.target, languages)
+    background_tasks.add_task(
+        run_index_job, run.id, payload.target, languages, label_queries, low, high, payload.enrich_batch
+    )
     return run
 
 

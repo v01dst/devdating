@@ -246,6 +246,8 @@ class SyncRun(Base):
     target: Mapped[int] = mapped_column(Integer, default=200)
     indexed: Mapped[int] = mapped_column(Integer, default=0)
     languages: Mapped[list[str]] = mapped_column(JSON, default=list)
+    label_groups: Mapped[list[str]] = mapped_column(JSON, default=list)
+    difficulty: Mapped[str] = mapped_column(String(20), default="")
     error: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
