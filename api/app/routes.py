@@ -14,24 +14,33 @@ from app.issues import estimate_issue_difficulty
 from app.learning import contribution_readiness, learning_paths
 from app.matching import affinity_boost, build_reasons, calculate_compatibility, language_affinity
 from app.models import (
+    Contribution,
+    ContributionState,
     Conversation,
     Issue,
     IssueRecommendation,
     Match,
     MatchStatus,
     Message,
+    Notification,
     Project,
     Swipe,
     SwipeDirection,
     User,
 )
+from app.notifications import notify
 from app.schemas import (
+    ContributionClaim,
+    ContributionRead,
+    ContributionUpdate,
     DiscoveryCard,
     MatchRead,
     MatchRespond,
     MessageCreate,
     MessageRead,
+    NotificationRead,
     ProjectRead,
+    StatusRead,
     SwipeCreate,
     UserPreferencesUpdate,
     UserRead,
@@ -214,6 +223,8 @@ async def create_swipe(
             db.add(match)
             match_created = True
 
+    if match_created:
+        await notify(db, user.id, "MATCH", f"Matched {project.name}", f"Score {score}", "/matches")
     await db.commit()
     if match is not None:
         background_tasks.add_task(create_issue_recommendation_task, match.id)
@@ -423,6 +434,7 @@ async def respond_to_match(
     if payload.accept:
         match.status = MatchStatus.MATCHED
         match.matched_at = datetime.now(UTC)
+        await notify(db, match.user_id, "APPROVAL", f"Match accepted for {match.project.name}", "", "/matches")
         await db.commit()
         background_tasks.add_task(create_issue_recommendation_task, match.id)
     else:
@@ -640,6 +652,7 @@ async def create_message(
     conversation.last_message_at = now
     db.add(message)
     db.add(conversation)
+    await notify(db, conversation.match.user_id, "MESSAGE", "New message", payload.body.strip()[:200], "/matches")
     await db.commit()
     await db.refresh(message)
     return message
@@ -681,3 +694,101 @@ async def platform_stats(db: AsyncSession = Depends(get_db)) -> dict:
 @router.post("/admin/sync-github")
 async def admin_sync_github(languages: list[str] | None = None):
     return await sync_all(languages or ["Python", "TypeScript"])
+
+
+@router.get("/status", response_model=StatusRead)
+async def get_status(user: User = Depends(require_user), db: AsyncSession = Depends(get_db)):
+    pc = await db.scalar(select(func.count()).select_from(Project)) or 0
+    ic = await db.scalar(select(func.count()).select_from(Issue)) or 0
+    needs = not bool((user.tech_stack or []) or user.onboarding_completed_at)
+    return {"project_count": pc, "issue_count": ic, "needs_onboarding": needs, "seeded": pc > 0}
+
+@router.get("/notifications", response_model=list[NotificationRead])
+async def list_notifications(user: User = Depends(require_user), db: AsyncSession = Depends(get_db)):
+    r = await db.execute(
+        select(Notification)
+        .where(Notification.user_id == user.id)
+        .order_by(Notification.created_at.desc())
+        .limit(50)
+    )
+    return list(r.scalars().all())
+
+@router.patch("/notifications/{nid}/read", response_model=NotificationRead)
+async def read_notification(
+    nid: uuid.UUID, user: User = Depends(require_user), db: AsyncSession = Depends(get_db)
+):
+    n = await db.scalar(select(Notification).where(Notification.id == nid, Notification.user_id == user.id))
+    if n is None:
+        raise HTTPException(404, "Not found")
+    n.read = True
+    await db.commit()
+    return n
+
+@router.post("/notifications/read-all")
+async def read_all(user: User = Depends(require_user), db: AsyncSession = Depends(get_db)):
+    r = await db.execute(
+        select(Notification).where(Notification.user_id == user.id, Notification.read.is_(False))
+    )
+    for n in r.scalars().all():
+        n.read = True
+    await db.commit()
+    return {"ok": True}
+
+@router.get("/contributions", response_model=list[ContributionRead])
+async def list_contributions(user: User = Depends(require_user), db: AsyncSession = Depends(get_db)):
+    r = await db.execute(
+        select(Contribution)
+        .where(Contribution.user_id == user.id)
+        .order_by(Contribution.created_at.desc())
+    )
+    rows = r.scalars().all()
+    return [
+        ContributionRead(
+            id=x.id,
+            repo=x.repo,
+            issue_number=x.issue_number,
+            state=x.state.value if hasattr(x.state, "value") else str(x.state),
+            pr_url=x.pr_url,
+            created_at=x.created_at,
+        )
+        for x in rows
+    ]
+
+@router.post("/contributions/claim", response_model=ContributionRead, status_code=201)
+async def claim_contribution(
+    payload: ContributionClaim, user: User = Depends(require_user), db: AsyncSession = Depends(get_db)
+):
+    c = Contribution(
+        user_id=user.id,
+        repo=payload.repo,
+        issue_number=payload.issue_number,
+        issue_id=payload.issue_id,
+        state=ContributionState.CLAIMED,
+    )
+    db.add(c)
+    await db.commit()
+    await db.refresh(c)
+    await notify(db, user.id, "SYSTEM", f"Claimed {payload.repo}#{payload.issue_number}", "", "/contributions")
+    await db.commit()
+    await db.refresh(c)
+    return ContributionRead(
+        id=c.id, repo=c.repo, issue_number=c.issue_number, state="CLAIMED", pr_url=c.pr_url,
+        created_at=c.created_at,
+    )
+
+@router.patch("/contributions/{cid}", response_model=ContributionRead)
+async def update_contribution(
+    cid: uuid.UUID, payload: ContributionUpdate, user: User = Depends(require_user), db: AsyncSession = Depends(get_db)
+):
+    c = await db.scalar(select(Contribution).where(Contribution.id == cid, Contribution.user_id == user.id))
+    if c is None:
+        raise HTTPException(404, "Not found")
+    c.state = ContributionState(payload.state)
+    if payload.pr_url is not None:
+        c.pr_url = payload.pr_url
+    await db.commit()
+    await db.refresh(c)
+    return ContributionRead(
+        id=c.id, repo=c.repo, issue_number=c.issue_number, state=payload.state, pr_url=c.pr_url,
+        created_at=c.created_at,
+    )

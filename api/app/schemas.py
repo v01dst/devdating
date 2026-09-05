@@ -91,3 +91,38 @@ class MessageRead(BaseModel):
     sender_user_id: uuid.UUID
     body: str
     created_at: datetime
+
+
+class StatusRead(BaseModel):
+    project_count: int
+    issue_count: int
+    needs_onboarding: bool
+    seeded: bool
+
+class NotificationRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    type: str
+    title: str
+    body: str
+    link: str
+    read: bool
+    created_at: datetime
+
+class ContributionRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    repo: str
+    issue_number: int
+    state: str
+    pr_url: str | None
+    created_at: datetime
+
+class ContributionClaim(BaseModel):
+    repo: str = Field(min_length=1, max_length=200)
+    issue_number: int = Field(default=0, ge=0)
+    issue_id: uuid.UUID | None = None
+
+class ContributionUpdate(BaseModel):
+    state: str = Field(pattern="^(INTERESTED|CLAIMED|PR_OPEN|MERGED)$")
+    pr_url: str | None = None

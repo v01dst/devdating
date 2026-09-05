@@ -259,7 +259,9 @@ class Contribution(Base):
     issue_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("issues.id", ondelete="SET NULL"), nullable=True)
     repo: Mapped[str] = mapped_column(String(200), default="")
     issue_number: Mapped[int] = mapped_column(Integer, default=0)
-    state: Mapped[ContributionState] = mapped_column(Enum(ContributionState, name="contribution_state"), default=ContributionState.INTERESTED)
+    state: Mapped[ContributionState] = mapped_column(
+        Enum(ContributionState, name="contribution_state"), default=ContributionState.INTERESTED
+    )
     pr_url: Mapped[str | None] = mapped_column(Text)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
