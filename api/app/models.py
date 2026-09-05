@@ -69,6 +69,8 @@ class User(Base):
     preferences: Mapped[dict] = mapped_column(JSON, default=dict)
     availability: Mapped[dict] = mapped_column(JSON, default=dict)
     onboarding_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    notifications: Mapped[list["Notification"]] = relationship(cascade="all, delete-orphan")
+    contributions: Mapped[list["Contribution"]] = relationship(cascade="all, delete-orphan")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
@@ -220,3 +222,46 @@ class Issue(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     project: Mapped[Project] = relationship()
+
+
+class NotificationType(str, enum.Enum):
+    MATCH = "MATCH"
+    MESSAGE = "MESSAGE"
+    APPROVAL = "APPROVAL"
+    SYSTEM = "SYSTEM"
+
+
+class ContributionState(str, enum.Enum):
+    INTERESTED = "INTERESTED"
+    CLAIMED = "CLAIMED"
+    PR_OPEN = "PR_OPEN"
+    MERGED = "MERGED"
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    type: Mapped[str] = mapped_column(String(20), default="SYSTEM")
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    body: Mapped[str] = mapped_column(Text, default="")
+    link: Mapped[str] = mapped_column(Text, default="")
+    read: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Contribution(Base):
+    __tablename__ = "contributions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    issue_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("issues.id", ondelete="SET NULL"), nullable=True)
+    repo: Mapped[str] = mapped_column(String(200), default="")
+    issue_number: Mapped[int] = mapped_column(Integer, default=0)
+    state: Mapped[ContributionState] = mapped_column(
+        Enum(ContributionState, name="contribution_state"), default=ContributionState.INTERESTED
+    )
+    pr_url: Mapped[str | None] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

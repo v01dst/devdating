@@ -19,3 +19,5 @@ logs/
 devdating.db*
 devdating.env
 npm/.npmrc
+.worktrees/
+.superpowers/

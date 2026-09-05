@@ -73,6 +73,8 @@ devdating install
 devdating up
 ```
 
+Open http://localhost:3000/ — onboarding takes 30s, Today's Picks appear even without a token. Advanced: devdating sync-bulk 500, sync-me, enrich-languages.
+
 Or without a global install: `npx @v01dst/devdating up`
 
 Then open:

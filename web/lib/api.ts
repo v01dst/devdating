@@ -49,3 +49,17 @@ export const api = {
       body: JSON.stringify({ project_id: projectId, direction }),
     }),
 };
+
+export type Status = { project_count: number; issue_count: number; needs_onboarding: boolean; seeded: boolean };
+export type Notification = { id: string; type: string; title: string; body: string; link: string; read: boolean; created_at: string };
+export type Contribution = { id: string; repo: string; issue_number: number; state: string; pr_url: string | null; created_at: string };
+
+Object.assign(api, {
+  status: () => request<Status>("/api/v1/status"),
+  notifications: () => request<Notification[]>("/api/v1/notifications"),
+  markRead: (id: string) => request<Notification>(`/api/v1/notifications/${id}/read`, { method: "PATCH" }),
+  readAll: () => request<{ ok: boolean }>("/api/v1/notifications/read-all", { method: "POST" }),
+  contributions: () => request<Contribution[]>("/api/v1/contributions"),
+  claim: (repo: string, issue_number: number) => request<Contribution>("/api/v1/contributions/claim", { method: "POST", body: JSON.stringify({ repo, issue_number }) }),
+  onboarding: (prefs: Record<string, unknown>) => request<unknown>("/api/v1/me/preferences", { method: "PATCH", body: JSON.stringify(prefs) }),
+});
