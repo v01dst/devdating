@@ -123,7 +123,13 @@ export function IndexButton({ compact = false }: { compact?: boolean }) {
                 <button type="button" onClick={start} disabled={starting} className="btn-primary mt-4 w-full px-4 py-3 text-sm disabled:opacity-50">
                   {starting ? "Starting…" : "Start indexing"}
                 </button>
-                <p className="mt-3 text-xs text-zinc-400">Tip: set a GITHUB_TOKEN for ~10× faster indexing — GitHub throttles anonymous requests hard.</p>
+                <button
+                  type="button"
+                  onClick={() => { close(); window.dispatchEvent(new CustomEvent("devdating:open-token")); }}
+                  className="mt-3 w-full text-center text-xs text-zinc-500 hover:text-zinc-900"
+                >
+                  Tip: connect a GitHub token for ~10× faster indexing →
+                </button>
               </>
             ) : (
               <>

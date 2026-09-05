@@ -116,6 +116,17 @@ class SyncRunRead(BaseModel):
     updated_at: datetime
 
 
+class TokenUpdate(BaseModel):
+    token: str = Field(min_length=1, max_length=500)
+
+
+class TokenStatus(BaseModel):
+    configured: bool
+    login: str = ""
+    rate_limit: int = 0
+    rate_remaining: int = 0
+
+
 class StatusRead(BaseModel):
     project_count: int
     issue_count: int

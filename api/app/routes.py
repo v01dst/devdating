@@ -7,6 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
+from app import github_token
 from app.auth import oauth_configured, require_user
 from app.db import get_db
 from app.github_ingest import (
@@ -53,6 +54,8 @@ from app.schemas import (
     SwipeCreate,
     SyncRunRead,
     SyncStart,
+    TokenStatus,
+    TokenUpdate,
     UserPreferencesUpdate,
     UserRead,
 )
@@ -961,3 +964,36 @@ async def update_contribution(
         id=c.id, repo=c.repo, issue_number=c.issue_number, state=payload.state, pr_url=c.pr_url,
         created_at=c.created_at,
     )
+
+
+@router.get("/settings/github-token", response_model=TokenStatus)
+async def github_token_status(user: User = Depends(require_user)) -> TokenStatus:
+    if not github_token.token_configured():
+        return TokenStatus(configured=False)
+    return TokenStatus(configured=True, login=github_token.stored_login())
+
+
+@router.put("/settings/github-token", response_model=TokenStatus)
+async def save_github_token(
+    payload: TokenUpdate,
+    user: User = Depends(require_user),
+) -> TokenStatus:
+    try:
+        info = await github_token.check_github_token(payload.token)
+    except ValueError as exc:
+        message = str(exc)
+        code = status.HTTP_401_UNAUTHORIZED if "rejected" in message else status.HTTP_502_BAD_GATEWAY
+        raise HTTPException(code, detail=message) from exc
+    github_token.save_token(payload.token.strip(), info.get("login", ""))
+    return TokenStatus(
+        configured=True,
+        login=info.get("login", ""),
+        rate_limit=info.get("rate_limit", 0),
+        rate_remaining=info.get("rate_remaining", 0),
+    )
+
+
+@router.delete("/settings/github-token", response_model=TokenStatus)
+async def delete_github_token(user: User = Depends(require_user)) -> TokenStatus:
+    github_token.remove_token()
+    return TokenStatus(configured=False)
