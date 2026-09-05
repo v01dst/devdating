@@ -46,42 +46,42 @@ export function PreferencesForm({ initial }: { initial: Initial }) {
 
   return (
     <form
-      className="glass-card mt-6 rounded-3xl p-6"
+      className="card mt-6 rounded-3xl p-6"
       onSubmit={(event) => {
         event.preventDefault();
         setSaved(false);
         mutation.mutate();
       }}
     >
-      <h2 className="font-semibold">Preferences</h2>
+      <h2 className="font-semibold text-zinc-900">Preferences</h2>
       <div className="mt-4 grid gap-4 md:grid-cols-3">
-        <label className="text-sm text-white/60">
+        <label className="text-sm text-zinc-600">
           Tech stack (comma separated)
           <input
             value={techStack}
             onChange={(event) => setTechStack(event.target.value)}
             placeholder="python, typescript"
-            className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-accent"
+            className="input mt-2"
           />
         </label>
-        <label className="text-sm text-white/60">
+        <label className="text-sm text-zinc-600">
           Experience level
           <select
             value={level}
             onChange={(event) => setLevel(event.target.value)}
-            className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none"
+            className="input mt-2"
           >
             {LEVELS.map((item) => (
               <option key={item} value={item}>{item}</option>
             ))}
           </select>
         </label>
-        <label className="text-sm text-white/60">
+        <label className="text-sm text-zinc-600">
           Availability
           <select
             value={availability}
             onChange={(event) => setAvailability(event.target.value)}
-            className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none"
+            className="input mt-2"
           >
             {AVAILABILITY.map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
@@ -93,12 +93,12 @@ export function PreferencesForm({ initial }: { initial: Initial }) {
         <button
           type="submit"
           disabled={mutation.isPending}
-          className="rounded-2xl bg-accent px-5 py-2.5 font-medium transition hover:bg-accent-soft disabled:opacity-50"
+          className="btn-primary px-5 py-2.5 transition disabled:opacity-50"
         >
           {mutation.isPending ? "Saving…" : "Save preferences"}
         </button>
-        {saved && <span className="text-sm text-emerald-300">Saved</span>}
-        {mutation.isError && <span className="text-sm text-red-400">Could not save</span>}
+        {saved && <span className="text-sm text-emerald-600">Saved</span>}
+        {mutation.isError && <span className="text-sm text-rose-600">Could not save</span>}
       </div>
     </form>
   );

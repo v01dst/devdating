@@ -8,7 +8,7 @@ export default async function ProfilePage() {
   if (!user) {
     return (
       <main className="mx-auto w-full max-w-4xl px-6 py-12">
-        <div className="glass-card mt-10 rounded-3xl p-8 text-white/65">
+        <div className="card mt-10 rounded-3xl p-8 text-zinc-600">
           Could not load your profile. Is the API running?
         </div>
       </main>
@@ -22,12 +22,12 @@ export default async function ProfilePage() {
       <header className="mt-8 flex items-center gap-5">
         {user.avatar_url && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={user.avatar_url} alt="" className="size-20 rounded-3xl border border-white/15" />
+          <img src={user.avatar_url} alt="" className="size-20 rounded-3xl border border-zinc-200" />
         )}
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">{user.name || user.github_login}</h1>
-          <p className="text-white/55">@{user.github_login}</p>
-          <span className="mt-2 inline-block rounded-full bg-accent/20 px-3 py-1 text-xs font-medium text-accent-soft">
+          <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">{user.name || user.github_login}</h1>
+          <p className="text-zinc-500">@{user.github_login}</p>
+          <span className="mt-2 inline-block rounded-full bg-violet-100 px-3 py-1 text-xs font-medium text-[#5b3df0]">
             {user.experience_level}
           </span>
         </div>
@@ -40,26 +40,26 @@ export default async function ProfilePage() {
           ["Matches", stats.matches ?? 0],
           ["Readiness", `${readiness.readiness_score ?? 0}/100`],
         ].map(([label, value]) => (
-          <div key={label} className="glass-card rounded-2xl p-4 text-center">
-            <div className="text-2xl font-bold text-like">{value}</div>
-            <div className="mt-1 text-xs uppercase tracking-wide text-white/50">{label}</div>
+          <div key={label} className="card rounded-2xl p-4 text-center">
+            <div className="text-2xl font-bold text-emerald-600">{value}</div>
+            <div className="mt-1 text-xs uppercase tracking-wide text-zinc-500">{label}</div>
           </div>
         ))}
       </div>
 
-      <section className="glass-card mt-6 rounded-3xl p-6">
-        <h2 className="font-semibold">Tech stack</h2>
+      <section className="card mt-6 rounded-3xl p-6">
+        <h2 className="font-semibold text-zinc-900">Tech stack</h2>
         <div className="mt-3 flex flex-wrap gap-2">
           {(user.tech_stack?.length ? user.tech_stack : ["none yet"]).map((lang: string) => (
-            <span key={lang} className="rounded-full border border-white/15 px-3 py-1 text-sm">{lang}</span>
+            <span key={lang} className="chip">{lang}</span>
           ))}
         </div>
         {user.domains?.length > 0 && (
           <>
-            <h2 className="mt-5 font-semibold">Domains</h2>
+            <h2 className="mt-5 font-semibold text-zinc-900">Domains</h2>
             <div className="mt-3 flex flex-wrap gap-2">
               {user.domains.map((domain: string) => (
-                <span key={domain} className="rounded-full bg-white/10 px-3 py-1 text-sm">{domain}</span>
+                <span key={domain} className="rounded-full bg-zinc-100 px-3 py-1 text-sm text-zinc-600">{domain}</span>
               ))}
             </div>
           </>
@@ -75,17 +75,17 @@ export default async function ProfilePage() {
       />
 
       {readiness.advice?.length > 0 && (
-        <section className="glass-card mt-6 rounded-3xl p-6">
-          <h2 className="font-semibold">Contribution readiness</h2>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/40">
+        <section className="card mt-6 rounded-3xl p-6">
+          <h2 className="font-semibold text-zinc-900">Contribution readiness</h2>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-zinc-100">
             <div className="h-full rounded-full bg-accent" style={{ width: `${readiness.readiness_score ?? 0}%` }} />
           </div>
-          <ul className="mt-4 space-y-1 text-sm text-white/70">
+          <ul className="mt-4 space-y-1 text-sm text-zinc-600">
             {readiness.advice.map((tip: string) => (
               <li key={tip}>✦ {tip}</li>
             ))}
           </ul>
-          <p className="mt-3 text-xs text-white/45">
+          <p className="mt-3 text-xs text-zinc-500">
             {readiness.language_matched ?? 0} language-matched · {readiness.unassigned_easy ?? 0} unassigned easy issues indexed
           </p>
         </section>
@@ -93,19 +93,19 @@ export default async function ProfilePage() {
 
       {paths.paths?.length > 0 && (
         <section className="mt-6">
-          <h2 className="font-semibold">Learning paths</h2>
+          <h2 className="font-semibold text-zinc-900">Learning paths</h2>
           {paths.recommended_first_step && (
-            <p className="mt-1 text-sm text-accent-soft">Start here: {paths.recommended_first_step}</p>
+            <p className="mt-1 text-sm text-[#5b3df0]">Start here: {paths.recommended_first_step}</p>
           )}
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             {paths.paths.map((path: any) => (
-              <div key={path.id} className="glass-card rounded-3xl p-5">
+              <div key={path.id} className="card rounded-3xl p-5">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-semibold">{path.title}</h3>
-                  <span className="rounded-full bg-white/10 px-2 py-1 text-xs text-white/60">~{path.estimated_days}d</span>
+                  <h3 className="font-semibold text-zinc-900">{path.title}</h3>
+                  <span className="rounded-full bg-zinc-100 px-2 py-1 text-xs text-zinc-500">~{path.estimated_days}d</span>
                 </div>
-                <p className="mt-2 text-sm text-white/60">{path.outcome}</p>
-                <ol className="mt-3 space-y-1 text-sm text-white/75">
+                <p className="mt-2 text-sm text-zinc-500">{path.outcome}</p>
+                <ol className="mt-3 space-y-1 text-sm text-zinc-600">
                   {path.steps.map((step: string, index: number) => (
                     <li key={step}>{index + 1}. {step}</li>
                   ))}

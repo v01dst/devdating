@@ -5,15 +5,15 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        surface: "#08080d",
-        raised: "#10101a",
+        surface: "#f4f5f7",
+        raised: "#ffffff",
         accent: {
           DEFAULT: "#7c5cff",
-          soft: "#a48bff",
+          soft: "#5b3df0",
         },
-        signal: "#22d3ee",
-        like: "#22c55e",
-        pass: "#f43f5e",
+        signal: "#0284c7",
+        like: "#16a34a",
+        pass: "#e11d48",
       },
       boxShadow: {
         glow: "0 0 45px rgba(124,92,255,0.28)",

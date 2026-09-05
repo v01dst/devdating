@@ -22,7 +22,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="flex min-h-dvh flex-col bg-surface text-white antialiased">
+      <body className="flex min-h-dvh flex-col bg-surface text-zinc-900 antialiased">
         <Providers>
           <TopNav />
           <AuthBanner />

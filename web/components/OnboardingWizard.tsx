@@ -14,22 +14,22 @@ export function OnboardingWizard() {
     setDone(true);
     window.location.href = "/discover";
   };
-  if (done) return <div>Saved — taking you to Discover…</div>;
+  if (done) return <div className="text-zinc-600">Saved — taking you to Discover…</div>;
   return (
-    <div className="mx-auto max-w-xl">
-      <h1 className="text-3xl font-bold">Get your picks in 30 seconds</h1>
-      <p className="opacity-70">Step 1/2 — pick languages. Step 2/2 — pick level.</p>
+    <div className="card mx-auto max-w-xl p-6">
+      <h1 className="text-3xl font-bold text-zinc-900">Get your picks in 30 seconds</h1>
+      <p className="text-zinc-600">Step 1/2 — pick languages. Step 2/2 — pick level.</p>
       <div className="mt-4 flex flex-wrap gap-2">
         {LANGS.map((l) => (
-          <button key={l} onClick={() => toggle(l)} className={langs.includes(l) ? "rounded-full bg-[#7c5cff] px-4 py-2 text-sm font-bold text-white" : "rounded-full border border-black/15 px-4 py-2 text-sm dark:border-white/15"}>{l}</button>
+          <button key={l} onClick={() => toggle(l)} className={langs.includes(l) ? "rounded-full bg-accent px-4 py-2 text-sm font-bold text-white" : "rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-600"}>{l}</button>
         ))}
       </div>
-      <div className="mt-4 flex gap-2">
+      <div className="mt-4 flex flex-wrap gap-2">
         {["NEWCOMER", "BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"].map((lv) => (
-          <button key={lv} onClick={() => setLevel(lv)} className={level === lv ? "rounded-xl bg-black px-3 py-2 text-xs font-bold text-white dark:bg-white dark:text-black" : "rounded-xl border border-black/15 px-3 py-2 text-xs dark:border-white/15"}>{lv}</button>
+          <button key={lv} onClick={() => setLevel(lv)} className={level === lv ? "rounded-xl bg-zinc-900 px-3 py-2 text-xs font-bold text-white" : "rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-600"}>{lv}</button>
         ))}
       </div>
-      <button onClick={save} className="mt-6 w-full rounded-2xl bg-[#7c5cff] py-3 font-bold text-white">Show my picks →</button>
+      <button onClick={save} className="btn-primary mt-6 w-full py-3 font-bold">Show my picks →</button>
     </div>
   );
 }

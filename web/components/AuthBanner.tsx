@@ -12,7 +12,7 @@ export function AuthBanner() {
   });
   if (!data) return null;
   return (
-    <div className="border-b border-black/10 bg-amber-100 px-4 py-2 text-center text-xs text-amber-900 dark:border-white/10 dark:bg-white/5 dark:text-white/70">
+    <div className="border-b border-violet-200 bg-violet-50 px-4 py-2 text-center text-xs text-violet-900">
       Local mode — no login needed. {data.needs_onboarding ? (<a className="underline" href="/onboarding">Finish onboarding →</a>) : (<span>{data.project_count} projects ready.</span>)}
     </div>
   );
