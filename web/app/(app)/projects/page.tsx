@@ -25,8 +25,8 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Sea
     <main className="mx-auto w-full max-w-7xl px-6 py-12">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-semibold tracking-tight text-zinc-900 sm:text-5xl">Projects that can help you</h1>
-          <p className="mt-4 max-w-2xl text-zinc-600">Search indexed public repositories by language, topic, activity, and contribution need.</p>
+          <h1 className="text-4xl font-semibold tracking-tight text-ink sm:text-5xl">Projects that can help you</h1>
+          <p className="mt-4 max-w-2xl text-ink-soft">Search indexed public repositories by language, topic, activity, and contribution need.</p>
         </div>
         <IndexButton />
       </div>
@@ -42,17 +42,17 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Sea
         </select>
         <button className="btn-primary px-5 py-3 transition">Find</button>
       </form>
-      <div className="mt-10 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{projects.length === 0 && <div className="card rounded-3xl p-6 text-zinc-600">No matching projects yet.</div>}
+      <div className="mt-10 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{projects.length === 0 && <div className="card rounded-3xl p-6 text-ink-soft">No matching projects yet.</div>}
         {projects.map((project: any, index: number) => (
           <StaggerItem key={project.id} index={index}>
           <div className="card group h-full rounded-3xl p-6 transition hover:border-accent/40">
-            <div className="flex items-start justify-between gap-4"><div><p className="text-xs uppercase tracking-wide text-[#5b3df0]">{project.owner_login}</p><a href={project.repo_url} target="_blank" rel="noreferrer"><h2 className="mt-1 line-clamp-1 text-lg font-semibold text-zinc-900 group-hover:text-[#5b3df0]">{project.name}</h2></a></div><span className="text-sm text-amber-500">★ {project.stars}</span></div>
-            <p className="mt-3 line-clamp-3 min-h-16 text-sm text-zinc-600">{project.description || "No description provided."}</p>
+            <div className="flex items-start justify-between gap-4"><div><p className="text-xs uppercase tracking-wide text-accent-soft">{project.owner_login}</p><a href={project.repo_url} target="_blank" rel="noreferrer"><h2 className="mt-1 line-clamp-1 text-lg font-semibold text-ink group-hover:text-accent-soft">{project.name}</h2></a></div><span className="text-sm text-warn">★ {project.stars}</span></div>
+            <p className="mt-3 line-clamp-3 min-h-16 text-sm text-ink-soft">{project.description || "No description provided."}</p>
             {timeAgo(project.synced_at) && (
-              <p className="mt-1 text-xs text-zinc-400">indexed {timeAgo(project.synced_at)}</p>
+              <p className="mt-1 text-xs text-ink-dim">indexed {timeAgo(project.synced_at)}</p>
             )}
             <div className="mt-5 flex flex-wrap gap-2">{project.languages.slice(0, 3).map((lang: string) => <span key={lang} className="chip">{lang}</span>)}</div>
-            <div className="mt-5 grid grid-cols-3 gap-2 text-center text-xs text-zinc-500"><div><b className="block text-zinc-900">{project.activity_score.toFixed(0)}</b>vibe</div><div><b className="block text-emerald-600">{project.open_issues}</b>open issues</div><div><b className="block text-zinc-900">{project.forks}</b>forks</div></div>
+            <div className="mt-5 grid grid-cols-3 gap-2 text-center text-xs text-ink-dim"><div><b className="block text-ink">{project.activity_score.toFixed(0)}</b>vibe</div><div><b className="block text-like">{project.open_issues}</b>open issues</div><div><b className="block text-ink">{project.forks}</b>forks</div></div>
             <div className="mt-4"><ClaimButton projectId={project.id} /></div>
           </div>
           </StaggerItem>

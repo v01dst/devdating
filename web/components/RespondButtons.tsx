@@ -26,7 +26,7 @@ export function RespondButtons({ matchId, project }: { matchId: string; project:
 
   if (resolved) {
     return (
-      <span className={`text-xs ${resolved === "accepted" ? "text-emerald-600" : "text-zinc-500"}`}>
+      <span className={`text-xs ${resolved === "accepted" ? "text-like" : "text-ink-dim"}`}>
         {resolved === "accepted" ? "✓ matched" : "declined"}
       </span>
     );
@@ -38,7 +38,7 @@ export function RespondButtons({ matchId, project }: { matchId: string; project:
         type="button"
         disabled={mutation.isPending}
         onClick={() => mutation.mutate(true)}
-        className="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-medium text-emerald-700 transition hover:bg-emerald-200 disabled:opacity-50"
+        className="rounded-full bg-like/15 px-3 py-1.5 text-xs font-medium text-like transition hover:bg-like/25 disabled:opacity-50"
       >
         Accept
       </button>
@@ -46,7 +46,7 @@ export function RespondButtons({ matchId, project }: { matchId: string; project:
         type="button"
         disabled={mutation.isPending}
         onClick={() => mutation.mutate(false)}
-        className="rounded-full bg-zinc-100 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-200 disabled:opacity-50"
+        className="rounded-full bg-ghost px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:bg-ink/15 disabled:opacity-50"
       >
         Decline
       </button>

@@ -7,13 +7,14 @@ import { api, type DiscoveryCard } from "@/lib/api";
 import { timeAgo } from "@/lib/timeAgo";
 import { MatchModal } from "@/components/MatchModal";
 import { SkeletonCard } from "@/components/PageShell";
+import { HeartIcon, StarIcon, UndoIcon, XIcon } from "@/components/UiIcons";
 
 type SwipeDirection = "LIKE" | "PASS" | "SUPER_LIKE";
 
 function ActivityHeatmap({ score }: { score: number }) {
   return (
     <div aria-label={`Project activity ${Math.round(score)} out of 100`}>
-      <div className="mb-2 flex items-center justify-between text-xs text-zinc-500">
+      <div className="mb-2 flex items-center justify-between text-xs text-ink-dim">
         <span>Vibe score</span>
         <span>{Math.round(score)}/100</span>
       </div>
@@ -49,17 +50,17 @@ function ProjectCard({ card, onSwipe }: { card: DiscoveryCard; onSwipe: (directi
     >
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm uppercase tracking-wide text-[#5b3df0]">{project.owner_login}</p>
-          <h2 className="mt-1 text-2xl font-semibold leading-tight text-zinc-900">{project.name}</h2>
+          <p className="text-sm uppercase tracking-wide text-accent-soft">{project.owner_login}</p>
+          <h2 className="mt-1 text-2xl font-semibold leading-tight text-ink">{project.name}</h2>
         </div>
-        <div className="rounded-2xl bg-violet-100 px-3 py-2 text-center">
-          <div className="text-lg font-bold text-[#5b3df0]">{Math.round(card.compatibility_score)}</div>
-          <div className="text-[10px] uppercase tracking-wide text-zinc-500">match</div>
+        <div className="rounded-2xl bg-accent/10 px-3 py-2 text-center">
+          <div className="text-lg font-bold text-accent-soft">{Math.round(card.compatibility_score)}</div>
+          <div className="text-[10px] uppercase tracking-wide text-ink-dim">match</div>
         </div>
       </div>
-      <p className="mt-4 line-clamp-4 min-h-20 text-sm text-zinc-600">{project.description ?? "No description provided."}</p>
+      <p className="mt-4 line-clamp-4 min-h-20 text-sm text-ink-soft">{project.description ?? "No description provided."}</p>
       {timeAgo(project.synced_at) && (
-        <p className="mt-2 text-xs text-zinc-400">indexed {timeAgo(project.synced_at)}</p>
+        <p className="mt-2 text-xs text-ink-dim">indexed {timeAgo(project.synced_at)}</p>
       )}
       <div className="mt-5 flex flex-wrap gap-2">
         {project.languages.slice(0, 4).map((language) => (
@@ -70,9 +71,9 @@ function ProjectCard({ card, onSwipe }: { card: DiscoveryCard; onSwipe: (directi
         ))}
       </div>
       <div className="mt-6"><ActivityHeatmap score={project.activity_score} /></div>
-      <ul className="mt-5 space-y-2 text-sm text-zinc-600">
+      <ul className="mt-5 space-y-2 text-sm text-ink-soft">
         {card.reasons.slice(0, 2).map((reason) => (
-          <li key={reason} className="flex gap-2"><span className="text-[#0284c7]">✦</span>{reason}</li>
+          <li key={reason} className="flex gap-2"><span className="text-signal">✦</span>{reason}</li>
         ))}
       </ul>
     </motion.article>
@@ -152,7 +153,7 @@ export function SwipeDeck() {
     return (
       <div className="mx-auto mt-10 max-w-md">
         <SkeletonCard />
-        <p className="mt-4 text-center text-sm text-zinc-500">Finding projects you&apos;ll love…</p>
+        <p className="mt-4 text-center text-sm text-ink-dim">Finding projects you&apos;ll love…</p>
       </div>
     );
   }
@@ -160,8 +161,8 @@ export function SwipeDeck() {
   if (!currentCard) {
     return (
       <div className="card mt-24 mx-auto max-w-md rounded-3xl p-8 text-center">
-        <h2 className="text-xl font-semibold text-zinc-900">No more projects</h2>
-        <p className="mt-3 text-zinc-500">Adjust preferences or refresh to discover a broader set.</p>
+        <h2 className="text-xl font-semibold text-ink">No more projects</h2>
+        <p className="mt-3 text-ink-dim">Adjust preferences or refresh to discover a broader set.</p>
       </div>
     );
   }
@@ -180,43 +181,43 @@ export function SwipeDeck() {
           type="button"
           whileTap={{ scale: 0.9 }}
           onClick={() => undoMutation.mutate()}
-          className="grid size-12 place-items-center rounded-full border border-zinc-200 bg-white text-xl text-zinc-500 transition hover:bg-zinc-100"
+          className="group grid size-12 place-items-center rounded-full border border-line bg-raised text-ink-dim transition hover:bg-ghost"
           aria-label="Undo last swipe"
           title="Undo (take back your last swipe)"
         >
-          ↩
+          <UndoIcon className="size-7 transition-transform duration-200 group-hover:scale-110" />
         </motion.button>
         <motion.button
           type="button"
           whileTap={{ scale: 0.9 }}
           onClick={() => doSwipe("PASS")}
-          className="grid size-16 place-items-center rounded-full border border-rose-200 bg-rose-50 text-2xl text-rose-600 transition hover:bg-rose-100"
+          className="group grid size-16 place-items-center rounded-full border border-heart/30 bg-heart/10 text-heart transition hover:bg-heart/15"
           aria-label="Pass (←)"
         >
-          ✕
+          <XIcon className="size-7 transition-transform duration-200 group-hover:scale-110" />
         </motion.button>
         <motion.button
           type="button"
           whileTap={{ scale: 0.9 }}
           onClick={() => doSwipe("SUPER_LIKE")}
-          className="grid size-12 place-items-center rounded-full border border-violet-200 bg-violet-100 text-xl text-[#5b3df0] transition hover:bg-violet-200"
+          className="group grid size-12 place-items-center rounded-full border border-accent/30 bg-accent/10 text-accent-soft transition hover:bg-accent/20"
           aria-label="Super like (↑)"
           title="Super like — they see you first"
         >
-          ⭐
+          <StarIcon className="size-7 transition-transform duration-200 group-hover:rotate-12 group-hover:scale-110" />
         </motion.button>
         <motion.button
           type="button"
           whileTap={{ scale: 0.9 }}
           onClick={() => doSwipe("LIKE")}
-          className="grid size-16 place-items-center rounded-full border border-emerald-200 bg-emerald-50 text-2xl text-emerald-600 transition hover:bg-emerald-100"
+          className="group grid size-16 place-items-center rounded-full border border-like/30 bg-like/10 text-like transition hover:bg-like/15"
           aria-label="Like (→)"
         >
-          ♥
+          <HeartIcon className="size-7 transition-transform duration-200 group-hover:scale-110" />
         </motion.button>
       </div>
-      <p className="absolute inset-x-0 -bottom-2 text-center text-xs text-zinc-400">← pass · → like · ↑ super-like · drag works too</p>
-      {feedback && <output className="absolute inset-x-0 top-6 text-center text-sm text-zinc-500">{feedback}</output>}
+      <p className="absolute inset-x-0 -bottom-2 text-center text-xs text-ink-dim">← pass · → like · ↑ super-like · drag works too</p>
+      {feedback && <output className="absolute inset-x-0 top-6 text-center text-sm text-ink-dim">{feedback}</output>}
       {celebration && (
         <MatchModal card={celebration.card} matchId={celebration.matchId} onClose={() => setCelebration(null)} />
       )}

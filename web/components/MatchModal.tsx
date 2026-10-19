@@ -7,22 +7,22 @@ import { api, type DiscoveryCard } from "@/lib/api";
 
 const BURSTS = [
   { x: -90, y: -70, c: "#7c5cff", d: 0 },
-  { x: 90, y: -60, c: "#22c55e", d: 0.05 },
-  { x: -70, y: 60, c: "#f59e0b", d: 0.1 },
-  { x: 80, y: 70, c: "#0284c7", d: 0.15 },
-  { x: 0, y: -100, c: "#e11d48", d: 0.2 },
+  { x: 90, y: -60, c: "#c2ff2e", d: 0.05 },
+  { x: -70, y: 60, c: "#ffb400", d: 0.1 },
+  { x: 80, y: 70, c: "#8ab4ff", d: 0.15 },
+  { x: 0, y: -100, c: "#ff3355", d: 0.2 },
 ];
 
 export function MatchModal({ card, matchId, onClose }: { card: DiscoveryCard; matchId: string; onClose: () => void }) {
   const rec = useQuery({ queryKey: ["issue-rec", matchId], queryFn: () => api.issueRec(matchId) });
   const issue = rec.data && rec.data.status !== "PENDING" ? rec.data : null;
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-zinc-950/50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <motion.div
         initial={{ opacity: 0, scale: 0.85, y: 30 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 320, damping: 24 }}
-        className="relative w-full max-w-md overflow-hidden rounded-3xl border border-zinc-200 bg-white p-8 text-center shadow-2xl"
+        className="relative w-full max-w-md overflow-hidden rounded-3xl border border-line bg-raised p-8 text-center shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {BURSTS.map((b, i) => (
@@ -39,31 +39,33 @@ export function MatchModal({ card, matchId, onClose }: { card: DiscoveryCard; ma
           initial={{ scale: 0, rotate: -30 }}
           animate={{ scale: 1, rotate: 0 }}
           transition={{ type: "spring", stiffness: 260, damping: 14, delay: 0.1 }}
-          className="mx-auto grid size-20 place-items-center rounded-full bg-violet-100 text-4xl"
+          className="mx-auto grid size-20 place-items-center rounded-full bg-accent/10"
         >
-          💜
+          <svg viewBox="0 0 256 256" className="size-9" aria-hidden="true">
+            <path fill="#ff3355" d="M178 40c-20.65 0-38.73 8.88-50 23.89C116.73 48.88 98.65 40 78 40a62.07 62.07 0 0 0-62 62c0 70 103.79 126.66 108.17 129.08a8 8 0 0 0 7.66 0C136.21 228.66 240 172 240 102a62.07 62.07 0 0 0-62-62Zm-70 180.09C95.26 214.42 32 170.68 32 102a46.06 46.06 0 0 1 46-46c19.45 0 35.78 10.36 42.6 27a8 8 0 0 0 14.8 0c6.82-16.67 23.15-27 42.6-27a46.06 46.06 0 0 1 46 46c0 68.61-63.25 112.42-76 118.09Z" />
+          </svg>
         </motion.div>
-        <h2 className="mt-4 text-3xl font-bold text-zinc-900">It&apos;s a match!</h2>
-        <p className="mt-1 text-zinc-600">
+        <h2 className="mt-4 text-3xl font-bold text-ink">It&apos;s a match!</h2>
+        <p className="mt-1 text-ink-soft">
           {card.project.owner_login}/{card.project.name} ·{" "}
-          <span className="font-bold text-[#5b3df0]">{Math.round(card.compatibility_score)}%</span>
+          <span className="font-bold text-accent-soft">{Math.round(card.compatibility_score)}%</span>
         </p>
         <div className="card mt-5 p-4 text-left">
-          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Starter issue</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink-dim">Starter issue</p>
           {issue ? (
-            <a href={issue.url} target="_blank" rel="noreferrer" className="mt-1 block font-semibold text-zinc-900 hover:text-[#5b3df0]">
+            <a href={issue.url} target="_blank" rel="noreferrer" className="mt-1 block font-semibold text-ink hover:text-accent-soft">
               {issue.title}
             </a>
           ) : (
             <div className="skeleton mt-2 h-5 w-full rounded-lg" />
           )}
-          {issue?.rationale && <p className="mt-1 text-sm text-zinc-500">{issue.rationale}</p>}
+          {issue?.rationale && <p className="mt-1 text-sm text-ink-dim">{issue.rationale}</p>}
         </div>
         <div className="mt-6 flex gap-2">
           <Link href="/matches" className="btn-primary flex-1 px-4 py-3 text-center text-sm">
             View match
           </Link>
-          <button type="button" onClick={onClose} className="flex-1 rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-100">
+          <button type="button" onClick={onClose} className="flex-1 rounded-2xl border border-line bg-raised px-4 py-3 text-sm font-semibold text-ink-soft transition hover:bg-ghost">
             Keep swiping
           </button>
         </div>

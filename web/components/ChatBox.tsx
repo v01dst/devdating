@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { io, type Socket } from "socket.io-client";
+import type { Socket } from "socket.io-client";
+import { ensureSocket, socketErrorMessage } from "@/lib/socket";
 
-const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-
-type Message = { id: string; sender_user_id: string; body: string; created_at: string };
+type Message = { id: string; conversation_id?: string; sender_user_id: string; body: string; created_at: string };
 
 function formatTime(value: string) {
   return new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -31,24 +30,38 @@ export function ChatBox({ conversationId }: { conversationId: string }) {
       })
       .catch(() => {});
 
-    // Realtime updates over Socket.IO, connected directly to the API origin so
-    // WebSocket upgrades are not dropped by the Next.js rewrite proxy.
-    const socket = io(API_ORIGIN, { path: "/socket.io", transports: ["websocket", "polling"] });
+    // Shared Socket.IO client (see lib/socket.ts) — one connection per tab,
+    // authenticated with a short-lived token that survives reconnects.
+    const socket = ensureSocket();
     socketRef.current = socket;
 
-    socket.on("connect", () => setConnected(true));
-    socket.on("disconnect", () => setConnected(false));
-    socket.on("error", (payload: { detail: string }) => setError(payload.detail));
-    socket.on("message", (message: Message) => {
+    const join = () => {
+      setConnected(true);
+      socket.emit("join", { conversation_id: conversationId });
+    };
+    const onConnect = () => join();
+    const onDisconnect = () => setConnected(false);
+    const onError = (payload: { detail?: string }) => setError(socketErrorMessage(payload));
+    const onMessage = (message: Message) => {
+      if (message.conversation_id && message.conversation_id !== conversationId) return;
       setMessages((existing) =>
         existing.some((item) => item.id === message.id) ? existing : [...existing, message],
       );
-    });
-    socket.emit("join", { conversation_id: conversationId });
+    };
+
+    socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
+    socket.on("error", onError);
+    socket.on("message", onMessage);
+    if (socket.connected) join();
 
     return () => {
       cancelled = true;
-      socket.disconnect();
+      socket.emit("leave", { conversation_id: conversationId });
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
+      socket.off("error", onError);
+      socket.off("message", onMessage);
     };
   }, [conversationId]);
 
@@ -66,25 +79,25 @@ export function ChatBox({ conversationId }: { conversationId: string }) {
   return (
     <section className="card mt-5 flex flex-col rounded-3xl p-6">
       <div className="flex items-center justify-between">
-        <h2 className="font-semibold text-zinc-900">Conversation</h2>
-        <span className={`text-xs ${connected ? "text-emerald-600" : "text-zinc-500"}`}>
+        <h2 className="font-semibold text-ink">Conversation</h2>
+        <span className={`text-xs ${connected ? "text-like" : "text-ink-dim"}`}>
           {connected ? "● live" : "○ reconnecting…"}
         </span>
       </div>
       <div ref={scrollRef} className="mt-4 h-80 space-y-3 overflow-y-auto pr-2">
         {messages.length === 0 && (
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-ink-dim">
             Say hi! Note down what you plan to work on before claiming the issue.
           </p>
         )}
         {messages.map((message) => (
           <div key={message.id} className="flex flex-col items-end">
-            <div className="max-w-[80%] rounded-2xl bg-violet-100 px-4 py-2 text-sm text-zinc-900">{message.body}</div>
-            <span className="mt-1 text-[10px] text-zinc-500">{formatTime(message.created_at)}</span>
+            <div className="max-w-[80%] rounded-2xl bg-accent/10 px-4 py-2 text-sm text-ink">{message.body}</div>
+            <span className="mt-1 text-[10px] text-ink-dim">{formatTime(message.created_at)}</span>
           </div>
         ))}
       </div>
-      {error && <p className="mt-2 text-sm text-rose-600">{error}</p>}
+      {error && <p className="mt-2 text-sm text-heart">{error}</p>}
       <form
         className="mt-4 flex gap-3"
         onSubmit={(event) => {

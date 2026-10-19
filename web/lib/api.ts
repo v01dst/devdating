@@ -42,6 +42,27 @@ export type DiscoveryCard = {
   reasons: string[];
 };
 
+export type Status = { project_count: number; issue_count: number; needs_onboarding: boolean; seeded: boolean };
+export type Notification = { id: string; type: string; title: string; body: string; link: string; read: boolean; created_at: string };
+export type Contribution = {
+  id: string;
+  repo: string;
+  issue_number: number;
+  state: string;
+  pr_url: string | null;
+  last_synced_at: string | null;
+  updated_at: string | null;
+  created_at: string;
+};
+export type ContributionSyncResult = {
+  repos_checked: number;
+  contributions_checked: number;
+  skipped_recent: number;
+  updated: Contribution[];
+  errors: { repo: string; error: string }[];
+};
+export type SyncRun = { id: string; state: string; target: number; indexed: number; languages: string[]; error: string; created_at: string; updated_at: string };
+
 export const api = {
   cards: () => request<DiscoveryCard[]>("/api/v1/discovery/cards?limit=20"),
   swipe: (projectId: string, direction: "LIKE" | "PASS" | "SUPER_LIKE") =>
@@ -60,22 +81,26 @@ export const api = {
     request<{ status: string; title?: string; url?: string; rationale?: string; difficulty_score?: number }>(
       `/api/v1/matches/${matchId}/issue-recommendation`,
     ),
-};
-
-export type Status = { project_count: number; issue_count: number; needs_onboarding: boolean; seeded: boolean };
-export type Notification = { id: string; type: string; title: string; body: string; link: string; read: boolean; created_at: string };
-export type Contribution = { id: string; repo: string; issue_number: number; state: string; pr_url: string | null; created_at: string };
-export type SyncRun = { id: string; state: string; target: number; indexed: number; languages: string[]; error: string; created_at: string; updated_at: string };
-
-Object.assign(api, {
   status: () => request<Status>("/api/v1/status"),
   notifications: () => request<Notification[]>("/api/v1/notifications"),
   markRead: (id: string) => request<Notification>(`/api/v1/notifications/${id}/read`, { method: "PATCH" }),
   readAll: () => request<{ ok: boolean }>("/api/v1/notifications/read-all", { method: "POST" }),
+  unreadCount: () => request<{ count: number }>("/api/v1/notifications/unread-count"),
   contributions: () => request<Contribution[]>("/api/v1/contributions"),
-  claim: (repo: string, issue_number: number) => request<Contribution>("/api/v1/contributions/claim", { method: "POST", body: JSON.stringify({ repo, issue_number }) }),
+  claim: (repo: string, issueNumber: number, issueId?: string) =>
+    request<Contribution>("/api/v1/contributions/claim", {
+      method: "POST",
+      body: JSON.stringify({ repo, issue_number: issueNumber, issue_id: issueId ?? null }),
+    }),
+  updateContribution: (id: string, body: { state: string; pr_url?: string | null }) =>
+    request<Contribution>(`/api/v1/contributions/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  syncContributions: (force = false) =>
+    request<ContributionSyncResult>("/api/v1/contributions/sync", {
+      method: "POST",
+      body: JSON.stringify({ force }),
+    }),
   onboarding: (prefs: Record<string, unknown>) => request<unknown>("/api/v1/me/preferences", { method: "PATCH", body: JSON.stringify(prefs) }),
   syncStart: (body: { target: number; label_groups?: string[]; difficulty?: string | null }) =>
     request<SyncRun>("/api/v1/admin/sync", { method: "POST", body: JSON.stringify(body) }),
   syncLatest: () => request<SyncRun | null>("/api/v1/admin/sync/runs/latest"),
-});
+};

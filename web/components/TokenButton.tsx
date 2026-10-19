@@ -26,9 +26,9 @@ export function TokenButton() {
         type="button"
         onClick={() => setOpen(true)}
         title={data?.configured ? `GitHub connected${data.login ? ` as ${data.login}` : ""}` : "Connect a GitHub token for faster indexing"}
-        className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-zinc-600 transition hover:text-zinc-900"
+        className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-ink-soft transition hover:text-ink"
       >
-        <span className={`size-2 rounded-full ${data?.configured ? "bg-emerald-500" : "bg-zinc-300"}`} />
+        <span className={`size-2 rounded-full ${data?.configured ? "bg-like" : "bg-ink/20"}`} />
         <span className="hidden sm:inline">{data?.configured ? "GitHub ✓" : "Connect GitHub"}</span>
       </button>
       {open && <TokenModal onClose={() => setOpen(false)} />}
@@ -85,22 +85,22 @@ function TokenModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-zinc-950/50 p-4" onClick={onClose}>
-      <div className="w-full max-w-sm rounded-3xl border border-zinc-200 bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-xl font-bold text-zinc-900">GitHub token</h2>
-        <p className="mt-1 text-sm text-zinc-500">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div className="w-full max-w-sm rounded-3xl border border-line bg-raised p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-xl font-bold text-ink">GitHub token</h2>
+        <p className="mt-1 text-sm text-ink-dim">
           Speeds indexing ~10× (5,000 requests/hour instead of 60). Create one at{" "}
           <span className="font-mono">github.com → Settings → Developer settings → Personal access tokens</span> — no
           scopes needed for public data.
         </p>
         {data?.configured ? (
           <div className="card mt-4 p-4">
-            <p className="text-sm text-zinc-700">
-              <span className="mr-2 inline-block size-2 rounded-full bg-emerald-500" />
+            <p className="text-sm text-ink-soft">
+              <span className="mr-2 inline-block size-2 rounded-full bg-like" />
               Connected{data.login ? ` as ` : ""}{data.login && <span className="font-bold">{data.login}</span>}
             </p>
-            <p className="mt-1 text-xs text-zinc-500">Stored only on this machine, never shown again.</p>
-            <button type="button" onClick={remove} disabled={busy} className="mt-3 rounded-xl border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-600 hover:bg-zinc-100 disabled:opacity-50">
+            <p className="mt-1 text-xs text-ink-dim">Stored only on this machine, never shown again.</p>
+            <button type="button" onClick={remove} disabled={busy} className="mt-3 rounded-xl border border-line px-4 py-2 text-sm font-semibold text-ink-soft hover:bg-ghost disabled:opacity-50">
               Remove token
             </button>
           </div>
@@ -116,14 +116,14 @@ function TokenModal({ onClose }: { onClose: () => void }) {
               placeholder="ghp_••••••••••••"
               className="input mt-4 font-mono"
             />
-            {error && <p className="mt-2 text-sm text-rose-600">{error}</p>}
-            {saved && <p className="mt-2 text-sm text-emerald-600">Saved and verified.</p>}
+            {error && <p className="mt-2 text-sm text-heart">{error}</p>}
+            {saved && <p className="mt-2 text-sm text-like">Saved and verified.</p>}
             <button type="button" onClick={save} disabled={busy} className="btn-primary mt-3 w-full px-4 py-3 text-sm disabled:opacity-50">
               {busy ? "Verifying with GitHub…" : "Save token"}
             </button>
           </>
         )}
-        <button type="button" onClick={onClose} className="mt-3 w-full text-center text-sm text-zinc-500 hover:text-zinc-900">
+        <button type="button" onClick={onClose} className="mt-3 w-full text-center text-sm text-ink-dim hover:text-ink">
           Close
         </button>
       </div>

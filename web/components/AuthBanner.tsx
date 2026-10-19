@@ -12,8 +12,8 @@ export function AuthBanner() {
   });
   if (!data) return null;
   return (
-    <div className="border-b border-violet-200 bg-violet-50 px-4 py-2 text-center text-xs text-violet-900">
-      Local mode — no login needed. {data.needs_onboarding ? (<a className="underline" href="/onboarding">Finish onboarding →</a>) : (<span>{data.project_count} projects ready.</span>)}
+    <div className="border-b border-accent/25 bg-accent/10 px-4 py-2 text-center font-mono text-[11px] tracking-wide text-ink-soft">
+      Local mode, no login needed. {data.needs_onboarding ? (<a className="text-accent-soft underline decoration-dotted underline-offset-2 transition hover:text-ink" href="/onboarding">finish onboarding →</a>) : (<span>{data.project_count} projects ready.</span>)}
     </div>
   );
 }

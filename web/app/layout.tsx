@@ -1,11 +1,11 @@
 import type { Metadata, Viewport } from "next";
+import { Fredoka, Space_Grotesk, IBM_Plex_Mono } from "next/font/google";
 import { Providers } from "@/components/Providers";
-import { TopNav } from "@/components/TopNav";
-import { Footer } from "@/components/Footer";
-import { Sidebar } from "@/components/Sidebar";
-import { AuthBanner } from "@/components/AuthBanner";
-import { CommandPalette } from "@/components/CommandPalette";
 import "./globals.css";
+
+const fredoka = Fredoka({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-round", display: "swap" });
+const grotesk = Space_Grotesk({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-grot", display: "swap" });
+const plexMono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-label", display: "swap" });
 
 export const metadata: Metadata = {
   title: "DevDating — Match with open source",
@@ -22,17 +22,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="flex min-h-dvh flex-col bg-surface text-zinc-900 antialiased">
-        <Providers>
-          <TopNav />
-          <AuthBanner />
-          <div className="mx-auto flex w-full max-w-7xl flex-1 gap-4 px-4 sm:px-6">
-            <Sidebar />
-            <CommandPalette />
-            <div className="min-w-0 flex-1">{children}</div>
-          </div>
-          <Footer />
-        </Providers>
+      <body
+        className={`${fredoka.variable} ${grotesk.variable} ${plexMono.variable} flex min-h-dvh flex-col bg-surface font-sans text-ink antialiased`}
+      >
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

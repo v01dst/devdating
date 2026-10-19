@@ -21,17 +21,17 @@ export function ClaimButton({ projectId }: { projectId: string }) {
   });
 
   if (claimed) {
-    return <span className="text-xs text-emerald-600">✓ claimed — see Maintainer hub</span>;
+    return <span className="text-xs text-like">✓ claimed — see Maintainer hub</span>;
   }
   if (error) {
-    return <span className="text-xs text-zinc-500">already claimed or unavailable</span>;
+    return <span className="text-xs text-ink-dim">already claimed or unavailable</span>;
   }
   return (
     <button
       type="button"
       onClick={() => mutation.mutate()}
       disabled={mutation.isPending}
-      className="rounded-full bg-zinc-100 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-200 disabled:opacity-50"
+      className="rounded-full bg-ghost px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:bg-ink/15 disabled:opacity-50"
     >
       {mutation.isPending ? "Claiming…" : "Claim as maintainer"}
     </button>

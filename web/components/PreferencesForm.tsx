@@ -53,9 +53,9 @@ export function PreferencesForm({ initial }: { initial: Initial }) {
         mutation.mutate();
       }}
     >
-      <h2 className="font-semibold text-zinc-900">Preferences</h2>
+      <h2 className="font-semibold text-ink">Preferences</h2>
       <div className="mt-4 grid gap-4 md:grid-cols-3">
-        <label className="text-sm text-zinc-600">
+        <label className="text-sm text-ink-soft">
           Tech stack (comma separated)
           <input
             value={techStack}
@@ -64,7 +64,7 @@ export function PreferencesForm({ initial }: { initial: Initial }) {
             className="input mt-2"
           />
         </label>
-        <label className="text-sm text-zinc-600">
+        <label className="text-sm text-ink-soft">
           Experience level
           <select
             value={level}
@@ -76,7 +76,7 @@ export function PreferencesForm({ initial }: { initial: Initial }) {
             ))}
           </select>
         </label>
-        <label className="text-sm text-zinc-600">
+        <label className="text-sm text-ink-soft">
           Availability
           <select
             value={availability}
@@ -97,8 +97,8 @@ export function PreferencesForm({ initial }: { initial: Initial }) {
         >
           {mutation.isPending ? "Saving…" : "Save preferences"}
         </button>
-        {saved && <span className="text-sm text-emerald-600">Saved</span>}
-        {mutation.isError && <span className="text-sm text-rose-600">Could not save</span>}
+        {saved && <span className="text-sm text-like">Saved</span>}
+        {mutation.isError && <span className="text-sm text-heart">Could not save</span>}
       </div>
     </form>
   );

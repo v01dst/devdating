@@ -8,7 +8,7 @@ const links = [
   { href: "/projects", label: "Projects", icon: "▦" },
   { href: "/issues", label: "Issues", icon: "●" },
   { href: "/inbox", label: "Inbox", icon: "✉" },
-  { href: "/matches", label: "Matches", icon: "💜" },
+  { href: "/matches", label: "Matches", icon: "♥" },
   { href: "/contributions", label: "Tracking", icon: "✓" },
   { href: "/profile", label: "Profile", icon: "○" },
   { href: "/onboarding", label: "Onboarding", icon: "✦" },
@@ -37,7 +37,7 @@ export function Sidebar() {
         const active = pathname === href || pathname.startsWith(href + "/");
         return (
           <Link key={href} href={href} className={active ? "nav-active" : "nav-link"}>
-            <span aria-hidden>{icon}</span> {label}
+            <span aria-hidden className="grid w-4 place-items-center opacity-75">{icon}</span> {label}
             {href === "/inbox" && unread > 0 && (
               <span className="ml-auto rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-white">
                 {unread}
@@ -46,9 +46,9 @@ export function Sidebar() {
           </Link>
         );
       })}
-      <div className="mt-auto rounded-xl border border-zinc-200 bg-white p-3 text-xs text-zinc-600">
-        <div className="font-semibold text-zinc-900">Tip: press Ctrl-K</div>
-        <div className="text-zinc-500">Search projects, issues, actions</div>
+      <div className="mt-auto rounded-xl border border-line-soft bg-ghost p-3 font-mono text-[11px] leading-relaxed text-ink-dim">
+        <div className="text-ink">tip: press ctrl-k</div>
+        <div>search projects, issues, actions</div>
       </div>
     </aside>
   );

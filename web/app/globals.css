@@ -2,20 +2,47 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   DevDating app skin — dark, playful, same world as the landing.
+   One UI accent: #7c5cff. lime / red / amber / pink are semantic
+   tags (like / pass / warn / heart), never general-purpose colors.
+   ============================================================ */
+
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 body {
-  background: #f4f5f7;
-  color: #18181b;
+  background: #0b0b0d;
+  color: #f2ecdf;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-round), "Baloo 2", "Segoe UI", system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+::selection {
+  background: #7c5cff;
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 2px solid #c2ff2e;
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .card {
-  background: #fff;
-  border: 1px solid #e4e4e7;
+  background: linear-gradient(180deg, #17171d, #121217 70%);
+  border: 1px solid rgba(242, 236, 223, 0.12);
   border-radius: 20px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .nav-link {
@@ -26,11 +53,12 @@ body {
   padding: 0.6rem 0.9rem;
   font-size: 0.85rem;
   font-weight: 600;
-  color: #52525b;
+  color: #b8b1a4;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 .nav-link:hover {
-  background: #f4f4f5;
-  color: #18181b;
+  background: rgba(242, 236, 223, 0.06);
+  color: #f2ecdf;
 }
 .nav-active {
   display: flex;
@@ -42,42 +70,53 @@ body {
   font-weight: 700;
   background: #7c5cff;
   color: white;
+  box-shadow: 0 10px 24px rgba(124, 92, 255, 0.3);
 }
 
 .btn-primary {
   background: #7c5cff;
   color: #fff;
-  border-radius: 1rem;
+  border-radius: 999px;
   font-weight: 600;
+  transition: background 0.2s ease, transform 0.2s ease;
 }
 .btn-primary:hover {
   background: #6d4dff;
 }
+.btn-primary:active {
+  transform: translateY(1px);
+}
 
 .input {
-  border: 1px solid #e4e4e7;
-  background: #fff;
+  border: 1px solid rgba(242, 236, 223, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: #f2ecdf;
   border-radius: 1rem;
   padding: 0.75rem 1rem;
   width: 100%;
   outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.input::placeholder {
+  color: #8f8a80;
 }
 .input:focus {
   border-color: #7c5cff;
+  box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.25);
 }
 
 .chip {
-  border: 1px solid #e4e4e7;
+  border: 1px solid rgba(242, 236, 223, 0.14);
   border-radius: 999px;
   padding: 0.25rem 0.75rem;
   font-size: 0.75rem;
-  color: #52525b;
-  background: #fafafa;
+  color: #b8b1a4;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .chip-accent {
-  background: #ede9fe;
-  color: #5b3df0;
+  background: rgba(124, 92, 255, 0.16);
+  color: #a48bff;
   border-radius: 999px;
   padding: 0.25rem 0.75rem;
   font-size: 0.75rem;
@@ -92,7 +131,7 @@ body {
 }
 
 .skeleton {
-  background: linear-gradient(90deg, #ececee 25%, #f7f7f8 50%, #ececee 75%);
+  background: linear-gradient(90deg, #1a1a21 25%, #24242d 50%, #1a1a21 75%);
   background-size: 200% 100%;
   animation: shimmer 1.4s ease-in-out infinite;
 }
