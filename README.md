@@ -265,7 +265,7 @@ The web app proxies API calls through same-origin `/backend/*`, so cookies just 
 - ✅ Smart issue recommendations with difficulty scoring
 - ✅ Notification delivery (in-app, realtime via Socket.IO)
 - ✅ Contribution tracking from issue to merged pull request
-- 🔜 Full UI redesign
+- ✅ Full dark UI redesign (landing + all app pages)
 
 ## 🤝 Contributing
 
