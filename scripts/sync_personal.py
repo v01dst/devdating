@@ -1,12 +1,11 @@
 import asyncio
-from app.db import Base, engine
+
+from app.db import engine
 from app.github_ingest import sync_personal_discovery
-import app.models
 
 
 async def main():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # Schema is managed by Alembic; `bin/devdating` applies migrations before this runs.
     print(await sync_personal_discovery())
     await engine.dispose()
 

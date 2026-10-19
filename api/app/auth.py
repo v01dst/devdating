@@ -21,13 +21,26 @@ SESSION_COOKIE = "devdating_session"
 OAUTH_STATE_COOKIE = "devdating_oauth_state"
 SESSION_TTL_SECONDS = 30 * 24 * 60 * 60
 STATE_TTL_SECONDS = 600
+# Socket handshakes connect directly to the API origin (the Next.js proxy drops
+# WebSocket upgrades), so the session cookie is not always visible. The web app
+# exchanges its cookie for this short-lived, single-purpose token instead.
+SOCKET_TOKEN_TTL_SECONDS = 10 * 60
+_SOCKET_TOKEN_PREFIX = "socket"
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 
+_DEFAULT_SECRETS = {"", "development-secret", "local-development-secret", "replace-with-a-long-random-value"}
+
+
 def _signer() -> TimestampSigner:
-    secret = get_settings().session_secret or "development-secret"
-    return TimestampSigner(secret)
+    settings = get_settings()
+    secret = settings.session_secret
+    if settings.environment != "local" and secret in _DEFAULT_SECRETS:
+        raise RuntimeError(
+            "SESSION_SECRET must be a strong random value when ENVIRONMENT is not 'local'."
+        )
+    return TimestampSigner(secret or "development-secret")
 
 
 def create_session_token(user_id: uuid.UUID) -> str:
@@ -37,6 +50,19 @@ def create_session_token(user_id: uuid.UUID) -> str:
 def read_session_user_id(token: str) -> uuid.UUID:
     payload = _signer().unsign(token, max_age=SESSION_TTL_SECONDS).decode()
     return uuid.UUID(payload)
+
+
+def create_socket_token(user_id: uuid.UUID) -> str:
+    return _signer().sign(f"{_SOCKET_TOKEN_PREFIX}:{user_id}").decode()
+
+
+def read_socket_token(token: str) -> uuid.UUID:
+    """Read a socket token; session tokens are rejected (purpose separation)."""
+    payload = _signer().unsign(token, max_age=SOCKET_TOKEN_TTL_SECONDS).decode()
+    prefix, _, raw_user_id = payload.partition(":")
+    if prefix != _SOCKET_TOKEN_PREFIX:
+        raise ValueError("Not a socket token")
+    return uuid.UUID(raw_user_id)
 
 
 def oauth_configured() -> bool:

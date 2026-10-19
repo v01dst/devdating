@@ -8,9 +8,10 @@ def test_project_payloads_include_synced_at(client):
 
 
 def test_issue_payloads_include_opened_at(client):
-    from app.db import SessionLocal
-    from datetime import UTC, datetime, timedelta
     import asyncio
+    from datetime import UTC, datetime, timedelta
+
+    from app.db import SessionLocal
 
     async def _seed():
         from sqlalchemy import select

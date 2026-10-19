@@ -9,6 +9,7 @@ Security properties (do not weaken these):
 """
 
 import os
+import re
 from pathlib import Path
 
 import httpx
@@ -42,6 +43,8 @@ async def check_github_token(token: str) -> dict:
     cleaned = (token or "").strip()
     if not cleaned:
         raise ValueError("Token is empty.")
+    if not re.fullmatch(r"[A-Za-z0-9_]+", cleaned):
+        raise ValueError("That does not look like a GitHub token (unexpected characters).")
     try:
         async with httpx.AsyncClient(base_url="https://api.github.com", timeout=15) as client:
             user_response = await client.get(
@@ -79,7 +82,15 @@ def _read_lines(path: Path) -> list[str]:
 
 
 def save_token(token: str, login: str = "") -> None:
-    """Validate-then-save is enforced by callers; this only persists + activates."""
+    """Validate-then-save is enforced by callers; this only persists + activates.
+
+    Defensive charset check: a newline in the value would inject extra
+    variables into the env file, so only GitHub-shaped tokens are written.
+    """
+    if not re.fullmatch(r"[A-Za-z0-9_]+", token):
+        raise ValueError("Refusing to store a token with unexpected characters.")
+    if login and not re.fullmatch(r"[A-Za-z0-9-]+", login):
+        login = ""
     path = get_env_file()
     path.parent.mkdir(parents=True, exist_ok=True)
     kept = [line for line in _read_lines(path) if not line.startswith((TOKEN_KEY + "=", LOGIN_KEY + "="))]

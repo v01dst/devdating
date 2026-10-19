@@ -48,8 +48,9 @@ def test_token_save_masks_and_removes(client, monkeypatch, tmp_path):
     content = env_file.read_text()
     assert "GITHUB_TOKEN=ghp_valid123" in content
     assert "DATABASE_URL=sqlite:///x.db" in content
-    mode = stat.S_IMODE(env_file.stat().st_mode)
-    assert mode == 0o600
+    if os.name == "posix":
+        mode = stat.S_IMODE(env_file.stat().st_mode)
+        assert mode == 0o600
 
     status = client.get("/api/v1/settings/github-token").json()
     assert status["configured"] is True

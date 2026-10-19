@@ -8,7 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app import github_token
-from app.auth import oauth_configured, require_user
+from app.auth import SOCKET_TOKEN_TTL_SECONDS, create_socket_token, oauth_configured, require_user
+from app.contribution_sync import sync_contributions
 from app.db import get_db
 from app.github_ingest import (
     DEFAULT_EXPANDED_LANGUAGES,
@@ -38,10 +39,12 @@ from app.models import (
     SyncRun,
     User,
 )
-from app.notifications import notify
+from app.notifications import notify, push_notification
 from app.schemas import (
     ContributionClaim,
     ContributionRead,
+    ContributionSyncRequest,
+    ContributionSyncResult,
     ContributionUpdate,
     DiscoveryCard,
     MatchRead,
@@ -75,11 +78,6 @@ async def _get_owned_match(match_id: uuid.UUID, user: User, db: AsyncSession) ->
     return match
 
 
-@router.get("/healthz", include_in_schema=False)
-async def healthz() -> dict[str, str]:
-    return {"status": "ok"}
-
-
 @router.get("/me", response_model=UserRead)
 async def read_current_user(user: User = Depends(require_user)) -> User:
     return user
@@ -110,6 +108,20 @@ async def update_preferences(
     return user
 
 
+async def _language_affinity_for_user(db: AsyncSession, user: User) -> dict[str, float]:
+    """Like-ratio per language across the user's earlier swipes."""
+    swipe_lang_result = await db.execute(
+        select(Swipe.direction, Project.languages)
+        .join(Project, Swipe.project_id == Project.id)
+        .where(Swipe.user_id == user.id)
+    )
+    return language_affinity([
+        (direction.value, language)
+        for direction, languages in swipe_lang_result.all()
+        for language in (languages or [])
+    ])
+
+
 @router.get("/discovery/cards", response_model=list[DiscoveryCard])
 async def discovery_cards(
     limit: int = Query(default=20, ge=1, le=50),
@@ -124,16 +136,7 @@ async def discovery_cards(
         .limit(limit * 3)
     )
     projects = result.scalars().all()
-    swipe_lang_result = await db.execute(
-        select(Swipe.direction, Project.languages)
-        .join(Project, Swipe.project_id == Project.id)
-        .where(Swipe.user_id == user.id)
-    )
-    affinity = language_affinity([
-        (direction.value, language)
-        for direction, languages in swipe_lang_result.all()
-        for language in (languages or [])
-    ])
+    affinity = await _language_affinity_for_user(db, user)
     scored: list[tuple[float, dict, Project]] = []
     experience_value = {
         "NEWCOMER": 0,
@@ -204,11 +207,17 @@ async def create_swipe(
         project_contributor_count=project.contributor_count,
         project_issue_count=project.issue_count,
     )
+    # Apply the same affinity boost the discovery card showed, so the displayed
+    # compatibility score and the match decision can never disagree.
+    affinity = await _language_affinity_for_user(db, user)
+    boost, _ = affinity_boost(project.languages or [], affinity)
+    final_score = round(min(100.0, score + boost), 2)
+    breakdown = {**breakdown, "affinity": boost}
     swipe = Swipe(
         user_id=user.id,
         project_id=project.id,
         direction=payload.direction,
-        score_at_swipe=score,
+        score_at_swipe=final_score,
         score_features=breakdown,
         client_request_id=payload.client_request_id,
     )
@@ -216,7 +225,7 @@ async def create_swipe(
 
     match_created = False
     match: Match | None = None
-    if payload.direction in {SwipeDirection.LIKE, SwipeDirection.SUPER_LIKE} and score >= 65:
+    if payload.direction in {SwipeDirection.LIKE, SwipeDirection.SUPER_LIKE} and final_score >= 65:
         match_result = await db.execute(
             select(Match).where(Match.user_id == user.id, Match.project_id == project.id)
         )
@@ -229,7 +238,7 @@ async def create_swipe(
                 user_id=user.id,
                 project_id=project.id,
                 status=MatchStatus.MATCHED if auto_match else MatchStatus.PENDING_PROJECT,
-                compatibility_score=score,
+                compatibility_score=final_score,
                 score_breakdown=breakdown,
                 initiated_by="DEVELOPER",
                 matched_at=datetime.now(UTC) if auto_match else None,
@@ -237,14 +246,19 @@ async def create_swipe(
             db.add(match)
             match_created = True
 
+    notification = None
     if match_created:
-        await notify(db, user.id, "MATCH", f"Matched {project.name}", f"Score {score}", "/matches")
+        notification = await notify(
+            db, user.id, "MATCH", f"Matched {project.name}", f"Score {final_score}", "/matches"
+        )
     await db.commit()
+    if notification is not None:
+        await push_notification(notification)
     if match is not None:
         background_tasks.add_task(create_issue_recommendation_task, match.id)
     return {
         "swipe_id": str(swipe.id),
-        "compatibility_score": score,
+        "compatibility_score": final_score,
         "match_created": match_created,
         "match_status": match.status if match else None,
         "match_id": str(match.id) if match else None,
@@ -380,7 +394,7 @@ async def get_issue_recommendation(
     user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    await _get_owned_match(match_id, user, db)
+    match = await _get_owned_match(match_id, user, db)
     result = await db.execute(select(IssueRecommendation).where(IssueRecommendation.match_id == match_id))
     recommendation = result.scalar_one_or_none()
     if recommendation is None:
@@ -389,6 +403,9 @@ async def get_issue_recommendation(
         "id": str(recommendation.id),
         "title": recommendation.title,
         "url": recommendation.url,
+        "issue_number": recommendation.issue_number,
+        "issue_id": (recommendation.features or {}).get("issue_id"),
+        "repo": f"{match.project.owner_login}/{match.project.name}",
         "difficulty_score": float(recommendation.difficulty_score),
         "confidence": float(recommendation.confidence),
         "rationale": recommendation.rationale,
@@ -481,12 +498,20 @@ async def respond_to_match(
     if payload.accept:
         match.status = MatchStatus.MATCHED
         match.matched_at = datetime.now(UTC)
-        await notify(db, match.user_id, "APPROVAL", f"Match accepted for {match.project.name}", "", "/matches")
-        await db.commit()
-        background_tasks.add_task(create_issue_recommendation_task, match.id)
     else:
         match.status = MatchStatus.DECLINED
-        await db.commit()
+    notification = (
+        await notify(
+            db, match.user_id, "APPROVAL", f"Match accepted for {match.project.name}", "", "/matches"
+        )
+        if payload.accept
+        else None
+    )
+    await db.commit()
+    if notification is not None:
+        await push_notification(notification)
+    if payload.accept:
+        background_tasks.add_task(create_issue_recommendation_task, match.id)
     await db.refresh(match)
     return match
 
@@ -540,6 +565,7 @@ async def recommended_issues(
         scored.append({
             "issue_id": str(issue.id), "title": issue.title, "url": issue.url,
             "project_name": project.name, "repo_url": project.repo_url,
+            "repo": f"{project.owner_login}/{project.name}", "issue_number": issue.issue_number,
             "languages": project.languages, "labels": issue.labels,
             "difficulty": float(issue.difficulty_score),
             "opened_at": issue.opened_at.isoformat() if issue.opened_at else None,
@@ -715,9 +741,14 @@ async def create_message(
     db.add(conversation)
     project = await db.get(Project, conversation.match.project_id)
     maintainer_id = project.maintainer_user_id if project is not None else None
+    notification = None
     if maintainer_id is not None and maintainer_id != user.id:
-        await notify(db, maintainer_id, "MESSAGE", "New message", payload.body.strip()[:200], "/matches")
+        notification = await notify(
+            db, maintainer_id, "MESSAGE", "New message", payload.body.strip()[:200], "/matches"
+        )
     await db.commit()
+    if notification is not None:
+        await push_notification(notification)
     await db.refresh(message)
     return message
 
@@ -853,6 +884,31 @@ async def get_status(user: User = Depends(require_user), db: AsyncSession = Depe
     needs = not bool((user.tech_stack or []) or user.onboarding_completed_at)
     return {"project_count": pc, "issue_count": ic, "needs_onboarding": needs, "seeded": pc > 0}
 
+
+@router.get("/socket-token")
+async def socket_token(user: User = Depends(require_user)) -> dict:
+    """Short-lived handshake token for the direct Socket.IO connection.
+
+    Socket clients connect straight to the API origin (the Next.js proxy drops
+    WebSocket upgrades), where the session cookie may not be sent cross-origin.
+    """
+    return {"token": create_socket_token(user.id), "expires_in": SOCKET_TOKEN_TTL_SECONDS}
+
+@router.get("/notifications/unread-count")
+async def unread_notifications_count(
+    user: User = Depends(require_user), db: AsyncSession = Depends(get_db)
+) -> dict:
+    count = (
+        await db.scalar(
+            select(func.count())
+            .select_from(Notification)
+            .where(Notification.user_id == user.id, Notification.read.is_(False))
+        )
+        or 0
+    )
+    return {"count": count}
+
+
 @router.get("/notifications", response_model=list[NotificationRead])
 async def list_notifications(user: User = Depends(require_user), db: AsyncSession = Depends(get_db)):
     r = await db.execute(
@@ -884,6 +940,19 @@ async def read_all(user: User = Depends(require_user), db: AsyncSession = Depend
     await db.commit()
     return {"ok": True}
 
+def _contribution_read(c: Contribution) -> ContributionRead:
+    return ContributionRead(
+        id=c.id,
+        repo=c.repo,
+        issue_number=c.issue_number,
+        state=c.state.value if hasattr(c.state, "value") else str(c.state),
+        pr_url=c.pr_url,
+        last_synced_at=c.last_synced_at,
+        updated_at=c.updated_at,
+        created_at=c.created_at,
+    )
+
+
 @router.get("/contributions", response_model=list[ContributionRead])
 async def list_contributions(user: User = Depends(require_user), db: AsyncSession = Depends(get_db)):
     r = await db.execute(
@@ -891,18 +960,25 @@ async def list_contributions(user: User = Depends(require_user), db: AsyncSessio
         .where(Contribution.user_id == user.id)
         .order_by(Contribution.created_at.desc())
     )
-    rows = r.scalars().all()
-    return [
-        ContributionRead(
-            id=x.id,
-            repo=x.repo,
-            issue_number=x.issue_number,
-            state=x.state.value if hasattr(x.state, "value") else str(x.state),
-            pr_url=x.pr_url,
-            created_at=x.created_at,
-        )
-        for x in rows
-    ]
+    return [_contribution_read(x) for x in r.scalars().all()]
+
+
+@router.post("/contributions/sync", response_model=ContributionSyncResult)
+async def sync_contribution_states(
+    payload: ContributionSyncRequest | None = None,
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Check the contributor's PRs on GitHub and advance tracked contributions."""
+    result = await sync_contributions(db, user, force=bool(payload and payload.force))
+    return ContributionSyncResult(
+        repos_checked=result["repos_checked"],
+        contributions_checked=result["contributions_checked"],
+        skipped_recent=result["skipped_recent"],
+        updated=[_contribution_read(c) for c in result["updated"]],
+        errors=result["errors"],
+    )
+
 
 @router.post("/contributions/claim", response_model=ContributionRead, status_code=201)
 async def claim_contribution(
@@ -911,6 +987,7 @@ async def claim_contribution(
     user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ):
+    repo = payload.repo.strip()
     if payload.issue_id is not None:
         issue = await db.get(Issue, payload.issue_id)
         if issue is None:
@@ -918,36 +995,35 @@ async def claim_contribution(
     existing = await db.scalar(
         select(Contribution).where(
             Contribution.user_id == user.id,
-            Contribution.repo == payload.repo,
+            Contribution.repo == repo,
             Contribution.issue_number == payload.issue_number,
             Contribution.state != ContributionState.MERGED,
         )
     )
     if existing is not None:
         response.status_code = status.HTTP_200_OK
-        return ContributionRead(
-            id=existing.id,
-            repo=existing.repo,
-            issue_number=existing.issue_number,
-            state=existing.state.value if hasattr(existing.state, "value") else str(existing.state),
-            pr_url=existing.pr_url,
-            created_at=existing.created_at,
-        )
+        return _contribution_read(existing)
     c = Contribution(
         user_id=user.id,
-        repo=payload.repo,
+        repo=repo,
         issue_number=payload.issue_number,
         issue_id=payload.issue_id,
         state=ContributionState.CLAIMED,
     )
     db.add(c)
-    await notify(db, user.id, "SYSTEM", f"Claimed {payload.repo}#{payload.issue_number}", "", "/contributions")
-    await db.commit()
-    await db.refresh(c)
-    return ContributionRead(
-        id=c.id, repo=c.repo, issue_number=c.issue_number, state="CLAIMED", pr_url=c.pr_url,
-        created_at=c.created_at,
+    notification = await notify(
+        db,
+        user.id,
+        "SYSTEM",
+        f"Claimed {repo}#{payload.issue_number}",
+        "Track your pull request here.",
+        "/contributions",
     )
+    await db.commit()
+    await push_notification(notification)
+    await db.refresh(c)
+    return _contribution_read(c)
+
 
 @router.patch("/contributions/{cid}", response_model=ContributionRead)
 async def update_contribution(
@@ -961,10 +1037,7 @@ async def update_contribution(
         c.pr_url = payload.pr_url
     await db.commit()
     await db.refresh(c)
-    return ContributionRead(
-        id=c.id, repo=c.repo, issue_number=c.issue_number, state=payload.state, pr_url=c.pr_url,
-        created_at=c.created_at,
-    )
+    return _contribution_read(c)
 
 
 @router.get("/settings/github-token", response_model=TokenStatus)

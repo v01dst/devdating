@@ -51,6 +51,8 @@ Projects with zero technology overlap score 0 — you never see irrelevant cards
 - **🧠 Learning from your swipes** — every like/pass tunes language affinity, so recommendations improve the more you use it.
 - **🎯 Difficulty scoring** — every indexed issue gets a difficulty score from its labels, discussion, and size, so you can filter to beginner-friendly work.
 - **💬 Real-time chat** — Socket.IO-powered conversations with the maintainer once you match.
+- **🔔 Live notifications** — matches, messages, and merge updates arrive instantly; the Inbox badge updates without a refresh.
+- **📍 Contribution tracking** — every issue you track moves interested → claimed → PR open → merged, synced from your GitHub pull requests.
 - **🏷 Maintainer claiming** — maintainers claim their projects and get a hub to review incoming interest.
 - **🤝 Two-way matching** — projects with a claimed maintainer require their approval before a match is confirmed.
 - **📈 Profile dashboard** — contribution readiness, learning paths, and swipe stats in one place.
@@ -261,8 +263,9 @@ The web app proxies API calls through same-origin `/backend/*`, so cookies just 
 - ✅ Two-way matching between maintainers and contributors
 - ✅ Real-time chat (Socket.IO) after match
 - ✅ Smart issue recommendations with difficulty scoring
-- 🔜 Contribution tracking from issue to merged pull request
-- 🔜 Notification delivery (mentions, matches, messages)
+- ✅ Notification delivery (in-app, realtime via Socket.IO)
+- ✅ Contribution tracking from issue to merged pull request
+- 🔜 Full UI redesign
 
 ## 🤝 Contributing
 

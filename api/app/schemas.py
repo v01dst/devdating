@@ -151,13 +151,31 @@ class ContributionRead(BaseModel):
     issue_number: int
     state: str
     pr_url: str | None
+    last_synced_at: datetime | None = None
+    updated_at: datetime | None = None
     created_at: datetime
 
 class ContributionClaim(BaseModel):
-    repo: str = Field(min_length=1, max_length=200)
+    repo: str = Field(
+        min_length=3, max_length=200, pattern=r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+    )
     issue_number: int = Field(default=0, ge=0)
     issue_id: uuid.UUID | None = None
 
 class ContributionUpdate(BaseModel):
     state: str = Field(pattern="^(INTERESTED|CLAIMED|PR_OPEN|MERGED)$")
     pr_url: str | None = None
+
+class ContributionSyncRequest(BaseModel):
+    force: bool = False
+
+class ContributionSyncError(BaseModel):
+    repo: str
+    error: str
+
+class ContributionSyncResult(BaseModel):
+    repos_checked: int
+    contributions_checked: int
+    skipped_recent: int
+    updated: list[ContributionRead]
+    errors: list[ContributionSyncError]

@@ -278,5 +278,6 @@ class Contribution(Base):
         Enum(ContributionState, name="contribution_state"), default=ContributionState.INTERESTED
     )
     pr_url: Mapped[str | None] = mapped_column(Text)
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

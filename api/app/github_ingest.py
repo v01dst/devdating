@@ -12,12 +12,17 @@ from app.issues import estimate_issue_difficulty
 from app.matching import experience_level_from_score, infer_experience_score
 from app.models import ExperienceLevel, Issue, Project, User
 
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN") or os.environ.get("GITHUB_CLIENT_SECRET")
+
+def env_github_token() -> str:
+    """Read the token at call time so tokens saved from the settings UI apply
+    immediately, without a restart (see github_token.save_token)."""
+    return os.environ.get("GITHUB_TOKEN", "").strip()
 
 
 def cli_github_token():
-    if GITHUB_TOKEN:
-        return GITHUB_TOKEN
+    token = env_github_token()
+    if token:
+        return token
     try:
         return os.popen("gh auth token").read().strip()
     except Exception:
@@ -26,7 +31,7 @@ def cli_github_token():
 
 def github_headers():
     headers = {"Accept": "application/vnd.github+json", "User-Agent": "DevDating"}
-    token = GITHUB_TOKEN or cli_github_token()
+    token = cli_github_token()
     if token:
         headers["Authorization"] = f"Bearer {token}"
     return headers
