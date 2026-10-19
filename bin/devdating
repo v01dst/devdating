@@ -5,12 +5,14 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 source "$ROOT/devdating.env" 2>/dev/null || true
 if [[ ! -f "$ROOT/devdating.env" ]]; then
+  LOCAL_SECRET="$(python3 -c 'import secrets; print(secrets.token_hex(32))' 2>/dev/null || true)"
+  [[ -n "$LOCAL_SECRET" ]] || LOCAL_SECRET="local-$(od -An -tx1 /dev/urandom 2>/dev/null | tr -d ' \n' | head -c 48)"
   cat > "$ROOT/devdating.env" <<ENV
 DATABASE_URL=sqlite+aiosqlite:///$ROOT/devdating.db
 REDIS_URL=memory://
 GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
-SESSION_SECRET=local-development-secret
+SESSION_SECRET=$LOCAL_SECRET
 ENVIRONMENT=local
 DEVDATING_MODE=native
 DEVDATING_HOME=$ROOT
@@ -18,6 +20,9 @@ ENV
 fi
 export DATABASE_URL REDIS_URL ENVIRONMENT DEVDATING_MODE DEVDATING_HOME SESSION_SECRET
 MODE="${DEVDATING_MODE:-native}"
+# Local-first: loopback only by default. Opt into LAN access deliberately with
+# DEVDATING_BIND_HOST=0.0.0.0 (then also set WEB_ORIGIN to the address you browse from).
+BIND_HOST="${DEVDATING_BIND_HOST:-127.0.0.1}"
 PID_DIR="$ROOT/.run"
 LOG_DIR="$ROOT/logs"
 mkdir -p "$PID_DIR" "$LOG_DIR"
@@ -169,7 +174,7 @@ case "${1:-help}" in
           set -a
           source "$ROOT/devdating.env"
           set +a
-          nohup "$ROOT/.venv/bin/uvicorn" app.asgi:application --host 0.0.0.0 --port 8000 >"$ROOT/logs/api.log" 2>&1 &
+          nohup "$ROOT/.venv/bin/uvicorn" app.asgi:application --host "$BIND_HOST" --port 8000 >"$ROOT/logs/api.log" 2>&1 &
           echo $! >"$ROOT/.run/api.pid"
         )
         wait_for http://localhost:8000/healthz API "$PID_DIR/api.pid" || exit 1
@@ -192,7 +197,7 @@ case "${1:-help}" in
               exit 1
             }
           fi
-          nohup ./node_modules/.bin/next start --hostname 0.0.0.0 --port 3000 >>"$ROOT/logs/web.log" 2>&1 &
+          nohup ./node_modules/.bin/next start --hostname "$BIND_HOST" --port 3000 >>"$ROOT/logs/web.log" 2>&1 &
           echo $! >"$ROOT/.run/web.pid"
         )
         wait_for http://localhost:3000 Web "$PID_DIR/web.pid" || exit 1

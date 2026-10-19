@@ -1,0 +1,3 @@
+- [06:34] pytest api/tests: 60 passed (46 pre-existing + 14 new in tests/test_v6.py covering socket tokens, unread counts, contribution claim/update, sync state machine, TTL force, GitHub error handling, payload additions).
+- [06:34] ruff check app tests: clean.
+- [06:34] alembic upgrade head → downgrade base → upgrade head on a fresh SQLite DB: green (CI migration job parity). New revision c2f8d1e4a9b7 (v6 contribution sync).

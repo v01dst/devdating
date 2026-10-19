@@ -1,0 +1,2 @@
+- [06:51] Feature wave: realtime notifications (user rooms + push after commit + nav badge + live Inbox), full contribution lifecycle (CLAIMED→PR_OPEN→MERGED auto-advanced from the contributor's PRs on GitHub; manual override from the UI), Track-this-issue CTAs on match detail + issue feed, Inbox and Contribution tracking pages rebuilt (filters, lifecycle stepper, sync status, empty states).
+- [06:51] Next stage: full UI redesign from scratch (user-led); these pages are candidates to rebuild visually, keep the API wiring.

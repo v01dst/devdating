@@ -1,10 +1,18 @@
 import json, os, subprocess, sys
 from pathlib import Path
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 
 ROOT = Path(__file__).resolve().parents[1]
 app = FastAPI(title="DevDating Setup")
+
+
+def require_same_origin(request: Request) -> None:
+    """Block cross-site POSTs: a malicious page must not be able to trigger
+    install/seed on the local setup server."""
+    origin = request.headers.get("origin")
+    if origin not in (None, "", "http://localhost:3100", "http://127.0.0.1:3100"):
+        raise HTTPException(status_code=403, detail="Cross-origin request blocked")
 
 HTML = """<!doctype html><html lang=en><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>DevDating Setup</title>
 <style>
@@ -56,10 +64,12 @@ def status():
     return {"mode": os.environ.get("DEVDATING_MODE","native"), "runtime_ok": all(exists(x) for x in ["python3","node","npm"])}
 
 @app.post("/api/install")
-def install():
+def install(request: Request):
+    require_same_origin(request)
     return StreamingResponse(stream(f"{ROOT}/bin/devdating install && {ROOT}/bin/devdating up --seed"), media_type="text/event-stream")
 
 @app.post("/api/seed")
-def seed():
+def seed(request: Request):
+    require_same_origin(request)
     result = subprocess.run([f"{ROOT}/bin/devdating","seed"],cwd=ROOT,capture_output=True,text=True)
     return JSONResponse({"ok":result.returncode==0})

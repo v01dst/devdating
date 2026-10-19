@@ -1,0 +1,3 @@
+- [06:49] Live smoke (uvicorn app.asgi:application + next start, fresh SQLite): all 11 pages HTTP 200.
+- [06:49] socket.io with token auth: WebSocket handshake accepted, `notification` event pushed to the user room in <1s after a REST claim; unread-count endpoint agrees.
+- [06:49] Browser flow: Inbox badge went 1→2 live (no refresh) when an external claim fired; clicking a notification marked it read and navigated to /contributions (badge 2→1). Contribution state edit (CLAIMED→PR_OPEN + PR URL) persisted via PATCH; page auto-sync surfaced per-repo GitHub 422 in the summary strip; browser console clean.

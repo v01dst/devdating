@@ -3,7 +3,6 @@ const { spawn, spawnSync } = require("child_process");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const https = require("https");
 
 const HOME = process.env.DEVDATING_HOME || path.join(os.homedir(), ".devdating");
 const REPO = process.env.DEVDATING_REPO || "https://github.com/v01dst/devdating.git";
@@ -30,21 +29,10 @@ function run(command, args, options = {}) {
   if (result.status !== 0) process.exit(result.status || 1);
 }
 
-async function download(url, destination) {
-  return new Promise((resolve, reject) => {
-    https.get(url, response => {
-      if (response.statusCode >= 300 && response.headers.location) return resolve(download(response.headers.location, destination));
-      if (response.statusCode !== 200) return reject(new Error(`HTTP ${response.statusCode}`));
-      const file = fs.createWriteStream(destination);
-      response.pipe(file); file.on("finish", () => file.close(resolve)); file.on("error", reject);
-    }).on("error", reject);
-  });
-}
-
 async function install() {
   banner();
   for (const tool of ["git", "python3", "npm"]) {
-    if (!spawnSync(tool, ["--version"]).status === 0) {
+    if (spawnSync(tool, ["--version"], { stdio: "ignore" }).status !== 0) {
       console.error(`${colors.red}✖ ${tool} is required${colors.reset}`); process.exit(1);
     }
   }
@@ -56,11 +44,11 @@ async function install() {
 
   console.log(`${colors.cyan}▸${colors.reset} Installing dependencies...`);
   run("bash", ["-lc", [
-    `python3 -m venv '${HOME}/.venv'`,
-    `'${HOME}/.venv/bin/pip' install --upgrade pip --quiet`,
-    `'${HOME}/.venv/bin/pip' install 'fastapi>=0.111,<0.116' 'uvicorn[standard]>=0.30,<0.31' 'sqlalchemy[asyncio]>=2,<3' 'aiosqlite>=0.19' 'pydantic>=2,<3' 'pydantic-settings>=2' 'httpx>=0.27,<1' --quiet`,
-    `cd '${HOME}/web' && npm install --no-audit --no-fund --legacy-peer-deps`
-  ].join(" && ")]);
+    `python3 -m venv "$DEVDATING_INSTALL_HOME/.venv"`,
+    `"$DEVDATING_INSTALL_HOME/.venv/bin/pip" install --upgrade pip --quiet`,
+    `"$DEVDATING_INSTALL_HOME/.venv/bin/pip" install 'fastapi>=0.111,<0.116' 'uvicorn[standard]>=0.30,<0.31' 'sqlalchemy[asyncio]>=2,<3' 'aiosqlite>=0.19' 'pydantic>=2,<3' 'pydantic-settings>=2' 'httpx>=0.27,<1' --quiet`,
+    `cd "$DEVDATING_INSTALL_HOME/web" && npm install --no-audit --no-fund --legacy-peer-deps`
+  ].join(" && ")], { env: { ...process.env, DEVDATING_INSTALL_HOME: HOME } });
 
   fs.writeFileSync(path.join(HOME, "devdating.env"), [
     `DATABASE_URL=sqlite+aiosqlite://${HOME}/devdating.db`, "REDIS_URL=memory://", "",

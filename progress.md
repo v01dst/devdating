@@ -20,14 +20,28 @@ Continuously improve the project: fix UI/responsiveness, header/footer, README i
 - [x] Fix: config default DB -> portable SQLite (alembic/manual runs no longer hang on postgres default)
 - [x] Fix: bin/devdating ensure_schema (alembic upgrade head) before sync/seed commands
 - [x] README: troubleshooting snippet sources devdating.env before direct alembic
+- [x] Tech debt: removed create_all from sync scripts (Alembic is the only schema path)
+- [x] Tech debt: socket-token endpoint + token-auth handshake (OAuth-mode Socket.IO no longer needs the session cookie)
+- [x] Realtime notifications: user rooms, push after commit, unread-count endpoint, live nav badge
+- [x] Contribution tracking: `last_synced_at` + GitHub PR sync (CLAIMED -> PR_OPEN -> MERGED), manual override UI
+- [x] Tracking CTAs from match detail and issue feed; Inbox + Contributions pages rebuilt
+- [x] UI redesign stage: landing at `/` + **full dark reskin of all app pages** (tokens in
+      tailwind.config + globals.css, codemod over 35 tsx files, chrome rewritten, footer brand
+      icons github/MIT/next.js/fastapi/discord->9p.1) — see records/2026-10-19/full-app-reskin.md
+- [x] Seed data: **real GitHub projects** (7 repos, real links + metrics snapshot 2026-10-19)
+      replace the `github.com/example/...` placeholders; live Index/sync layers on top
+- [x] Full security & correctness audit: socket CORS `*`, 0.0.0.0 binds (loopback by
+      default now), docker port exposure, session-secret guard, token env-injection guard,
+      stale GitHub token bug, npm cli.js tool-check bug, installer CSRF, web security
+      headers, path encoding — see records/2026-10-19/security-audit.md
 
 ## Remaining / Candidates
-- [ ] Sync scripts still call create_all (bulk_sync, sync_personal) — redundant now that ensure_schema runs alembic; could remove for cleanliness
-- [ ] OAuth-mode Socket.IO auth relies on cookie (cross-origin direct connection won't send it) — needs token-in-query or shared cookie domain
-- [ ] Notification delivery (mentions, matches, messages)
-- [ ] Contribution tracking (issue -> PR -> merge)
+- [ ] Decide `/picks` fate: link it from TopNav or delete (orphaned after the landing took `/`)
+- [ ] Contribution sync for maintainers (swap repo-local search for timeline API when token scopes allow)
+- [ ] Notification digest / email delivery (mentions, matches, messages)
+- [ ] Contribution readiness insights on the profile dashboard
 
 ## Verification
-- Backend: 26 pytest passing, ruff clean
-- Frontend: next build green (11 routes)
-- Live: all pages HTTP 200, socket.io polling handshake 200
+- Backend: 60 pytest passing, ruff clean, alembic up/down/up green
+- Frontend: next build green (14 routes)
+- Live: all 11 pages HTTP 200; token socket handshake + live notification push verified in a real browser

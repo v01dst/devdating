@@ -1,0 +1,5 @@
+- [06:20] Removed `Base.metadata.create_all` from scripts/bulk_sync.py and scripts/sync_personal.py — schema now comes exclusively from Alembic (`bin/devdating` ensure_schema).
+- [06:20] Socket.IO OAuth auth fix: added purpose-separated short-lived socket token (`GET /api/v1/socket-token`, 10 min TTL) so cross-origin WebSocket handshakes authenticate without the session cookie. connect() now accepts token → cookie → local dev fallback.
+- [06:20] Contribution sync compares stored `last_synced_at` against aware UTC now — SQLite returns naive datetimes, which crashed the throttling check (TypeError). Added `_as_utc` normalizer.
+- [06:20] test_v4 token file-mode assertion now runs on posix only (Windows chmod cannot express 0600).
+- [06:20] test_v5 function-level import block sorted (ruff I001).
